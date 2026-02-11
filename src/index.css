@@ -1,0 +1,98 @@
+:root {
+  /* Color Palette - Dark Fantasy */
+  --bg-deep: #050507;
+  --bg-panel: rgba(15, 15, 20, 0.7);
+  --accent-primary: #f39c12;
+  /* Golden Ember */
+  --accent-secondary: #8e44ad;
+  /* Deep Arcane */
+  --text-main: #f5f6fa;
+  --text-dim: #95a5a6;
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(12px);
+
+  /* Typography */
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body,
+html,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  font-family: var(--font-main);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Glassmorphism Utility */
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.7);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+button {
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  font-family: inherit;
+  outline: none;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.2);
+  transform: translateY(-2px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+select {
+  border: 1px solid var(--panel-border);
+  outline: none;
+  font-family: inherit;
+}
