@@ -41,28 +41,155 @@ export class Character extends PIXI.Container {
         // Interaction
         this.eventMode = 'static';
         this.cursor = 'pointer';
+        // Very generous hit area for much easier clicking
+        this.hitArea = new PIXI.Rectangle(-50, -120, 100, 140);
+
         this.on('pointertap', this.onCharacterClick, this);
+        this.on('pointerover', () => { this.filters = [new PIXI.filters.ColorMatrixFilter()]; this.filters[0].brightness(1.2, false); });
+        this.on('pointerout', () => { this.filters = null; });
 
         this.setupVisuals();
+
+        // Check if loaded from save with 0 HP — must start dead/sleeping
+        const initialHp = data.currentHp ?? data.stats?.hp ?? 100;
+        if (initialHp <= 0) {
+            this.die();
+        }
     }
 
     setupVisuals() {
+        // Clear previous visuals if any
+        this.removeChildren();
+
         const color = this.getClassColor(this.data.class);
 
-        // Body (Stylized Silhouette)
-        this.body = new PIXI.Graphics();
-        this.body.beginFill(color, 0.8);
-        this.body.lineStyle(2, color, 1);
-        this.body.drawRoundedRect(-24, -72, 48, 72, 12);
-        this.body.endFill();
+        // Shadow (Common)
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.3);
+        shadow.drawEllipse(0, 0, 20, 10);
+        shadow.endFill();
+        this.addChild(shadow);
 
-        // Inner Glow / Pulse
-        this.innerGlow = new PIXI.Graphics();
-        this.innerGlow.beginFill(color, 1.0);
-        this.innerGlow.drawCircle(0, -24, 12);
-        this.innerGlow.endFill();
-        this.addChild(this.innerGlow);
+        // Visual Container for body bouncing
+        this.body = new PIXI.Container();
         this.addChild(this.body);
+
+        const g = new PIXI.Graphics();
+        this.body.addChild(g);
+
+        // Class-specific visuals
+        switch (this.data.class) {
+            case 'Warrior':
+                // Trapezoid Body
+                g.beginFill(0x9b2c2c); // Deep crimson
+                g.lineStyle(2, 0x000000, 0.5);
+                g.moveTo(-20, -60);
+                g.lineTo(20, -60);
+                g.lineTo(14, -10);
+                g.lineTo(-14, -10);
+                g.closePath();
+                g.endFill();
+
+                // Helmet
+                g.beginFill(0x718093);
+                g.drawPolygon([-15, -60, 0, -75, 15, -60]);
+                g.endFill();
+
+                // Shield Icon
+                g.lineStyle(2, 0xf1c40f);
+                g.beginFill(0x2c3e50);
+                g.drawRect(-26, -45, 10, 25);
+                g.endFill();
+
+                // Aura
+                this.aura = new PIXI.Graphics();
+                this.aura.beginFill(0xe74c3c, 0.2);
+                this.aura.drawCircle(0, -35, 35);
+                this.aura.endFill();
+                this.body.addChildAt(this.aura, 0);
+                break;
+
+            case 'Mage':
+                // Robe Body
+                g.beginFill(0x2c3e50); // Dark Blue
+                g.moveTo(0, -80);
+                g.lineTo(16, -10);
+                g.lineTo(-16, -10);
+                g.closePath();
+                g.endFill();
+
+                // Hat
+                g.beginFill(0x8e44ad);
+                g.moveTo(-20, -80);
+                g.lineTo(20, -80);
+                g.lineTo(0, -105);
+                g.closePath();
+                g.endFill();
+
+                // Staff
+                g.lineStyle(2, 0x95a5a6);
+                g.moveTo(18, -10);
+                g.lineTo(18, -90);
+                g.lineStyle(0);
+                g.beginFill(0x9b59b6);
+                g.drawCircle(18, -90, 5);
+                g.endFill();
+
+                // Sparkles (handled in update)
+                break;
+
+            case 'Archer':
+                // Tunic Body
+                g.beginFill(0x27ae60);
+                g.drawRoundedRect(-18, -70, 36, 60, 8);
+                g.endFill();
+
+                // Hood
+                g.beginFill(0x1e8449);
+                g.drawPolygon([-18, -70, 0, -85, 18, -70]);
+                g.endFill();
+
+                // Bow
+                g.lineStyle(3, 0xd35400);
+                g.moveTo(15, -65);
+                g.bezierCurveTo(35, -55, 35, -25, 15, -15);
+                g.lineStyle(1, 0xffffff, 0.5);
+                g.moveTo(15, -65);
+                g.lineTo(15, -15);
+                break;
+
+            case 'Cleric':
+                // Robe
+                g.beginFill(0xf39c12);
+                g.drawEllipse(0, -40, 20, 35);
+                g.endFill();
+
+                // Halo
+                g.lineStyle(2, 0xf1c40f);
+                g.drawEllipse(0, -85, 12, 4);
+
+                // Cross
+                g.lineStyle(0);
+                g.beginFill(0xffffff);
+                g.drawRect(-4, -50, 8, 25);
+                g.drawRect(-10, -45, 20, 8);
+                g.endFill();
+
+                // Light Glow
+                this.aura = new PIXI.Graphics();
+                this.aura.beginFill(0xf1c40f, 0.15);
+                this.aura.drawCircle(0, -40, 40);
+                this.aura.endFill();
+                this.body.addChildAt(this.aura, 0);
+                break;
+        }
+
+        // Inner Glow / Pulse (subtle for all)
+        this.innerGlow = new PIXI.Graphics();
+        this.innerGlow.beginFill(color, 0.0); // controlled in update
+        this.innerGlow.drawCircle(0, -40, 30);
+        this.innerGlow.endFill();
+        this.addChild(this.innerGlow); // Add to root, behind body? No needs to be on top or additive.
 
         // Name Tag
         const style = new PIXI.TextStyle({
@@ -75,15 +202,24 @@ export class Character extends PIXI.Container {
             dropShadowBlur: 4,
             dropShadowDistance: 2,
         });
+
         this.nameTag = new PIXI.Text(this.data.name.toUpperCase(), style);
         this.nameTag.anchor.set(0.5, 1);
-        this.nameTag.y = -55;
+        this.nameTag.y = -95; // Higher up
         this.addChild(this.nameTag);
+
+        // Underline
+        const underline = new PIXI.Graphics();
+        underline.beginFill(color);
+        underline.drawRect(-this.nameTag.width / 2, 0, this.nameTag.width, 2);
+        underline.endFill();
+        this.nameTag.addChild(underline);
 
         // HP Bar Background
         this.hpBarBg = new PIXI.Graphics();
-        this.hpBarBg.beginFill(0x2c3e50);
-        this.hpBarBg.drawRoundedRect(-24, -82, 48, 6, 2);
+        this.hpBarBg.beginFill(0x000000, 0.8);
+        this.hpBarBg.lineStyle(1, 0xffffff, 0.2);
+        this.hpBarBg.drawRoundedRect(-24, -112, 48, 6, 3);
         this.hpBarBg.endFill();
         this.addChild(this.hpBarBg);
 
@@ -95,15 +231,15 @@ export class Character extends PIXI.Container {
         // Death/sleep overlay
         this.deathOverlay = new PIXI.Graphics();
         this.deathOverlay.beginFill(0x000000, 0.6);
-        this.deathOverlay.drawRoundedRect(-24, -72, 48, 72, 12);
+        this.deathOverlay.drawRoundedRect(-25, -80, 50, 80, 10);
         this.deathOverlay.endFill();
         this.deathOverlay.visible = false;
-        this.addChild(this.deathOverlay);
+        this.body.addChild(this.deathOverlay); // Attach to body so it moves with it
 
         // Sleep zzZ text
-        this.sleepText = new PIXI.Text('💤', { fontSize: 20 });
+        this.sleepText = new PIXI.Text('💤', { fontSize: 24 });
         this.sleepText.anchor.set(0.5);
-        this.sleepText.y = -36;
+        this.sleepText.y = -80;
         this.sleepText.visible = false;
         this.addChild(this.sleepText);
     }
@@ -113,9 +249,14 @@ export class Character extends PIXI.Container {
         const maxHp = this.data.stats?.hp || 100;
         const currentHp = this.data.currentHp ?? maxHp;
         const ratio = Math.max(0, currentHp / maxHp);
-        const color = ratio > 0.5 ? 0x27ae60 : ratio > 0.25 ? 0xe67e22 : 0xc0392b;
+
+        // Gradient Colors for HP
+        let color = 0x27ae60; // Green
+        if (ratio < 0.25) color = 0xc0392b; // Red
+        else if (ratio < 0.5) color = 0xe67e22; // Orange
+
         this.hpBarFill.beginFill(color);
-        this.hpBarFill.drawRoundedRect(-23, -81, Math.max(0, 46 * ratio), 4, 1);
+        this.hpBarFill.drawRoundedRect(-23, -111, Math.max(0, 46 * ratio), 4, 2);
         this.hpBarFill.endFill();
     }
 
@@ -205,8 +346,22 @@ export class Character extends PIXI.Container {
         const time = Date.now();
 
         // Idle Animation (Glow)
-        if (!this.isDead) {
-            this.innerGlow.alpha = 0.5 + Math.sin(time / 500) * 0.2;
+        // Idle Animation (Class specific)
+        if (!this.isDead && this.body) {
+            const idleSpeed = this.data.class === 'Mage' ? 0.003 : 0.005;
+            const bounce = Math.sin(time * idleSpeed);
+
+            this.body.y = bounce * 3;
+
+            // Aura pulse
+            if (this.aura) {
+                this.aura.alpha = 0.2 + Math.sin(time * 0.002) * 0.1;
+                this.aura.scale.set(1.0 + Math.sin(time * 0.002) * 0.05);
+            }
+            // Halo float
+            if (this.data.class === 'Cleric') {
+                // Done in specialized glow/aura
+            }
         }
 
         if (!isRunning) return;
@@ -259,9 +414,10 @@ export class Character extends PIXI.Container {
             }
         }
 
-        // Bobbing animation logic
-        const bounce = Math.abs(Math.sin(time * 0.005));
-        this.body.y = -bounce * 4 - 24;
+        // Bobbing is handled above in Idle Animation block
+        // Remove old bobbing to avoid conflict
+        // const bounce = Math.abs(Math.sin(time * 0.005));
+        // this.body.y = -bounce * 4 - 24;
 
         if (this.attackCooldown > 0) {
             this.attackCooldown -= delta;

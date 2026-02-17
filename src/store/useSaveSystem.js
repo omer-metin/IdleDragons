@@ -98,9 +98,13 @@ class SaveSystem {
 
             // Restore Party
             if (data.party) {
+                // Ensure grid width is at least 5 for linear layout
+                const savedGrid = data.party.gridSize || { width: 5, height: 1 };
+                if (savedGrid.width < 5) savedGrid.width = 5;
+
                 usePartyStore.setState({
                     members: data.party.members || [],
-                    gridSize: data.party.gridSize || { width: 3, height: 3 },
+                    gridSize: savedGrid,
                 });
             }
 
@@ -126,7 +130,7 @@ class SaveSystem {
                     zone: data.game.zone || 1,
                     wave: data.game.wave || 1,
                     totalKills: data.game.totalKills || 0,
-                    gameState: 'LOBBY',
+                    gameState: 'MENU',
                     isRunning: false,
                 });
             }
@@ -177,6 +181,13 @@ class SaveSystem {
 
     clearSave() {
         localStorage.removeItem(SAVE_KEY);
+    }
+
+    hardReset() {
+        if (confirm('Are you sure you want to completely restart? All progress will be lost.')) {
+            this.clearSave();
+            window.location.reload();
+        }
     }
 }
 

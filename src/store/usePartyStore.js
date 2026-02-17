@@ -7,8 +7,9 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const xpToLevel = (level) => Math.floor(50 * Math.pow(1.5, level - 1));
 
 const usePartyStore = create((set, get) => ({
-    members: [],
-    gridSize: { width: 3, height: 3 },
+    // Grid State
+    gridSize: { width: 3, height: 1 },
+    members: [], // { id, x, y, characterId, stats, ... }
 
     addMember: (template, x, y) => {
         const { members, gridSize } = get();
@@ -158,6 +159,15 @@ const usePartyStore = create((set, get) => ({
             const atk = (m.stats?.atk || 10) + equipAtk;
             return total + atk;
         }, 0);
+    },
+
+    reviveAll: () => {
+        set((state) => ({
+            members: state.members.map(m => ({
+                ...m,
+                currentHp: m.stats.hp + (m.equipment?.combinedStats?.hp || 0)
+            }))
+        }));
     },
 
     reset: () => set({ members: [] }),

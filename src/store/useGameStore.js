@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 const useGameStore = create((set, get) => ({
-    gameState: 'LOBBY', // 'LOBBY', 'RUNNING', 'PAUSED', 'GAMEOVER'
+    gameState: 'MENU', // 'MENU', 'LOBBY', 'RUNNING', 'PAUSED', 'GAMEOVER'
     isRunning: false,
     timeMultiplier: 1.0,
     score: 0,
@@ -18,7 +18,9 @@ const useGameStore = create((set, get) => ({
     activePanel: null,
     selectedGridSlot: null,
 
-    startGame: () => set({ gameState: 'RUNNING', isRunning: true }),
+    enterMenu: () => set({ gameState: 'MENU', isRunning: false, activePanel: null }),
+    startGame: () => set({ gameState: 'LOBBY', isRunning: false }), // Menu -> Lobby
+    startAdventure: () => set({ gameState: 'RUNNING', isRunning: true }), // Lobby -> Adventure
     endGame: () => set({ gameState: 'GAMEOVER', isRunning: false }),
 
     togglePause: () => set((state) => {
@@ -76,6 +78,14 @@ const useGameStore = create((set, get) => ({
         };
     }),
 
+    restartZone: () => set((state) => ({
+        wave: 1,
+        enemiesKilledThisWave: 0,
+        bossDefeated: false,
+        gameState: 'RUNNING',
+        isRunning: true,
+    })),
+
     resetGame: () => set({
         distance: 0,
         score: 0,
@@ -83,7 +93,7 @@ const useGameStore = create((set, get) => ({
         wave: 1,
         enemiesKilledThisWave: 0,
         totalKills: 0,
-        gameState: 'LOBBY',
+        gameState: 'MENU',
         isRunning: false,
         activePanel: null
     }),

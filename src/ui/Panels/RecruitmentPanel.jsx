@@ -4,6 +4,8 @@ import { CLASS_DEFINITIONS } from '../../store/useRecruitmentStore';
 import useGameStore from '../../store/useGameStore';
 import useMetaStore from '../../store/useMetaStore';
 import { UserPlus, RefreshCw, X, Sword, Shield, Heart, Crosshair, Zap } from 'lucide-react';
+import GameButton from '../components/GameButton';
+import AudioManager from '../../audio/AudioManager';
 
 const RecruitmentPanel = () => {
     const { activePanel, closePanel, selectedGridSlot, gameState } = useGameStore();
@@ -11,8 +13,9 @@ const RecruitmentPanel = () => {
     const { souls } = useMetaStore();
 
     useEffect(() => {
-        if (activePanel === 'recruitment' && candidates.length === 0) {
-            generateCandidates();
+        if (activePanel === 'recruitment') {
+            AudioManager.playSFX('panel_open');
+            if (candidates.length === 0) generateCandidates();
         }
     }, [activePanel, candidates.length, generateCandidates]);
 
@@ -27,6 +30,7 @@ const RecruitmentPanel = () => {
         if (!selectedGridSlot) return;
         const success = recruit(index, selectedGridSlot.x, selectedGridSlot.y);
         if (success) {
+            AudioManager.playSFX('ui_recruit'); // Need to ensure this SFX exists or defaults
             closePanel();
         }
     };
@@ -35,33 +39,32 @@ const RecruitmentPanel = () => {
     const rerollCost = 5;
 
     return (
-        <div style={{
+        <div className="glass-panel anim-scale-in" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'rgba(20, 20, 30, 0.95)',
-            border: '2px solid #8e44ad',
-            borderRadius: '16px',
+            background: 'rgba(20, 20, 30, 0.98)',
+            border: '2px solid var(--accent-secondary)',
+            borderRadius: 'var(--radius-xl)',
             padding: '2rem',
             width: '900px',
             maxWidth: '95vw',
-            color: 'white',
-            fontFamily: 'Inter, sans-serif',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            color: 'var(--text-main)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
             zIndex: 1000
         }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--panel-border)', paddingBottom: '1rem' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: '1.6rem' }}>Choose Your Hero</h2>
-                    <div style={{ color: '#bdc3c7', fontSize: '0.85rem', marginTop: '0.3rem' }}>
-                        Target Slot: <span style={{ color: '#9b59b6', fontWeight: 'bold' }}>({selectedGridSlot?.x}, {selectedGridSlot?.y})</span>
-                        <span style={{ marginLeft: '1rem' }}>Cost: {recruitCost} Souls</span>
+                    <h2 className="font-display" style={{ margin: 0, fontSize: '2rem', color: 'var(--accent-secondary)' }}>Choose Your Hero</h2>
+                    <div style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                        Target Slot: <span style={{ color: 'white', fontWeight: 'bold' }}>#{selectedGridSlot ? selectedGridSlot.x + 1 : '?'}</span>
+                        <span style={{ marginLeft: '1.5rem', color: 'var(--accent-secondary)' }}>Cost: {recruitCost} Souls</span>
                     </div>
                 </div>
-                <button onClick={closePanel} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
-                    <X size={24} />
-                </button>
+                <GameButton onClick={closePanel} style={{ padding: '8px', background: 'transparent', border: 'none' }}>
+                    <X size={28} />
+                </GameButton>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(candidates.length, 4)}, 1fr)`, gap: '1rem', marginBottom: '1.5rem' }}>
@@ -130,54 +133,45 @@ const RecruitmentPanel = () => {
                             </div>
 
                             {/* Recruit Button */}
-                            <button
+                            <GameButton
                                 onClick={() => handleRecruit(index)}
                                 disabled={souls < recruitCost}
                                 style={{
                                     marginTop: 'auto',
-                                    padding: '0.7rem',
-                                    background: souls >= recruitCost ? classDef?.color || '#8e44ad' : '#7f8c8d',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    color: 'white',
+                                    padding: '0.8rem',
+                                    background: souls >= recruitCost ? classDef?.color || 'var(--accent-secondary)' : 'var(--bg-panel)',
+                                    border: souls >= recruitCost ? `1px solid ${classDef?.color}` : '1px solid var(--panel-border)',
                                     fontWeight: 'bold',
-                                    cursor: souls >= recruitCost ? 'pointer' : 'not-allowed',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.5rem',
-                                    transition: 'opacity 0.2s',
+                                    fontSize: '1rem',
+                                    justifyContent: 'center'
                                 }}
                             >
-                                <UserPlus size={16} />
-                                Recruit
-                            </button>
+                                <UserPlus size={18} /> Recruit
+                            </GameButton>
+                            {souls < recruitCost && (
+                                <div style={{ fontSize: '0.7rem', color: '#e74c3c', textAlign: 'center', marginTop: '0.2rem' }}>
+                                    Not enough Souls
+                                </div>
+                            )}
                         </div>
                     );
                 })}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+                <GameButton
                     onClick={reroll}
                     disabled={souls < rerollCost}
                     style={{
-                        padding: '0.8rem 2rem',
-                        background: '#e67e22',
+                        padding: '0.8rem 2.5rem',
+                        background: 'var(--accent-warning)', // orange
                         border: 'none',
-                        borderRadius: '8px',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '1rem',
-                        cursor: souls >= rerollCost ? 'pointer' : 'not-allowed',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
+                        fontSize: '1.1rem',
+                        fontWeight: 'bold'
                     }}
                 >
-                    <RefreshCw size={18} />
-                    Reroll Names ({rerollCost} Souls)
-                </button>
+                    <RefreshCw size={20} /> Reroll Names ({rerollCost} Souls)
+                </GameButton>
             </div>
         </div>
     );

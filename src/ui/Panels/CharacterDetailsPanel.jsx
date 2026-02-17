@@ -4,6 +4,8 @@ import usePartyStore, { xpToLevel } from '../../store/usePartyStore';
 import useResourceStore from '../../store/useResourceStore';
 import useInventoryStore from '../../store/useInventoryStore';
 import { X, Sword, Shield, Heart, ArrowUpCircle, Package, Crosshair, Zap } from 'lucide-react';
+import GameButton from '../components/GameButton';
+import AudioManager from '../../audio/AudioManager';
 
 const SLOT_NAMES = {
     mainHand: 'Main Hand',
@@ -26,14 +28,26 @@ const CharacterDetailsPanel = () => {
     const inventory = useInventoryStore();
     const [openSlot, setOpenSlot] = useState(null); // Which equipment slot picker is open
 
+    // Calculate member (safe even if selectedGridSlot is null)
+    const member = selectedGridSlot
+        ? members.find(m => m.x === selectedGridSlot.x && m.y === selectedGridSlot.y)
+        : null;
+
+    React.useEffect(() => {
+        if (activePanel === 'character_details') {
+            AudioManager.playSFX('panel_open');
+        }
+    }, [activePanel]);
+
+    React.useEffect(() => {
+        // Auto-close if member doesn't exist (e.g. dismissed or bug)
+        if (!member && activePanel === 'character_details') {
+            closePanel();
+        }
+    }, [member, activePanel, closePanel]);
+
     if (activePanel !== 'character_details' || !selectedGridSlot) return null;
-
-    const member = members.find(m => m.x === selectedGridSlot.x && m.y === selectedGridSlot.y);
-
-    if (!member) {
-        closePanel();
-        return null;
-    }
+    if (!member) return null;
 
     const level = member.level || 1;
     const xp = member.xp || 0;
@@ -83,35 +97,34 @@ const CharacterDetailsPanel = () => {
     const equipSlots = ['mainHand', 'offHand', 'armor', 'trinket'];
 
     return (
-        <div style={{
+        <div className="glass-panel anim-scale-in" style={{
             position: 'absolute',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'rgba(20, 20, 30, 0.95)',
-            border: '2px solid #34495e',
-            borderRadius: '16px',
+            background: 'rgba(15, 15, 20, 0.98)',
+            border: '1px solid var(--panel-border)',
+            borderRadius: 'var(--radius-xl)',
             padding: '2rem',
-            width: '440px',
-            maxHeight: '85vh',
+            width: '460px',
+            maxHeight: '90vh',
             overflowY: 'auto',
-            color: 'white',
-            fontFamily: 'Inter, sans-serif',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            color: 'var(--text-main)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
             zIndex: 1000
         }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--panel-border)', paddingBottom: '1rem' }}>
                 <div>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{member.name}</h2>
-                    <div style={{ fontSize: '0.85rem', color: '#bdc3c7' }}>
-                        <span style={{ color: '#f39c12', fontWeight: 'bold' }}>{member.class}</span> · Level {level}
-                        {member.canHeal && <span style={{ color: '#2ecc71', marginLeft: '0.5rem' }}>✚ Healer</span>}
+                    <h2 className="font-display" style={{ margin: 0, fontSize: '1.8rem', color: 'var(--accent-gold)' }}>{member.name}</h2>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-dim)', marginTop: '0.2rem' }}>
+                        <span style={{ fontWeight: 'bold', color: 'white' }}>{member.class}</span> <span style={{ opacity: 0.5 }}>|</span> Level {level}
+                        {member.canHeal && <span className="text-heal" style={{ marginLeft: '0.5rem', fontWeight: 'bold' }}>✚ Healer</span>}
                     </div>
                 </div>
-                <button onClick={closePanel} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                <GameButton onClick={closePanel} style={{ padding: '8px', background: 'transparent', border: 'none' }}>
                     <X size={24} />
-                </button>
+                </GameButton>
             </div>
 
             {/* XP Bar */}
@@ -171,34 +184,31 @@ const CharacterDetailsPanel = () => {
 
                         return (
                             <div key={slot}>
-                                <button
+                                <GameButton
                                     onClick={() => handleSlotClick(slot)}
                                     style={{
                                         width: '100%',
-                                        padding: '0.5rem',
+                                        padding: '0.8rem',
                                         background: isPickerOpen ? 'rgba(52,152,219,0.2)' : 'rgba(255,255,255,0.03)',
-                                        borderRadius: '8px',
-                                        border: `1px solid ${hasItem ? (item.rarityColor || '#555') : isPickerOpen ? '#3498db' : 'rgba(255,255,255,0.1)'}`,
-                                        color: 'white',
-                                        cursor: 'pointer',
+                                        border: `1px solid ${hasItem ? (item.rarityColor || '#555') : isPickerOpen ? 'var(--accent-info)' : 'var(--panel-border)'}`,
                                         textAlign: 'left',
-                                        transition: 'all 0.15s',
+                                        display: 'block' // Override flex
                                     }}
                                 >
-                                    <div style={{ fontSize: '0.65rem', color: '#7f8c8d', marginBottom: '0.2rem' }}>
-                                        {SLOT_ICONS[slot]} {SLOT_NAMES[slot]}
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', marginBottom: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <span style={{ fontSize: '1.1rem' }}>{SLOT_ICONS[slot]}</span> {SLOT_NAMES[slot]}
                                     </div>
                                     {hasItem ? (
                                         <div>
-                                            <div style={{ color: item.rarityColor || '#fff', fontWeight: 'bold', fontSize: '0.8rem' }}>{item.name}</div>
-                                            <div style={{ fontSize: '0.65rem', color: '#bdc3c7' }}>
+                                            <div style={{ color: item.rarityColor || '#fff', fontWeight: 'bold', fontSize: '0.9rem' }}>{item.name}</div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                                 {Object.entries(item.stats || {}).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(' ')}
                                             </div>
                                         </div>
                                     ) : (
-                                        <div style={{ color: '#555', fontStyle: 'italic', fontSize: '0.8rem' }}>Empty</div>
+                                        <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.8rem', padding: '0.2rem 0' }}>Empty Slot</div>
                                     )}
-                                </button>
+                                </GameButton>
                             </div>
                         );
                     })}
@@ -224,37 +234,29 @@ const CharacterDetailsPanel = () => {
                                 return <div style={{ color: '#7f8c8d', fontStyle: 'italic', fontSize: '0.8rem' }}>No items in inventory for this slot.</div>;
                             }
                             return items.map(item => (
-                                <button
+                                <GameButton
                                     key={item.instanceId}
                                     onClick={() => handleEquipItem(item)}
                                     style={{
                                         width: '100%',
-                                        padding: '0.5rem',
-                                        marginBottom: '0.3rem',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: `1px solid ${item.rarityColor || '#555'}`,
-                                        borderRadius: '6px',
-                                        color: 'white',
-                                        cursor: 'pointer',
+                                        padding: '0.6rem',
+                                        marginBottom: '0.4rem',
+                                        background: 'rgba(255,255,255,0.03)',
+                                        border: `1px solid ${item.rarityColor || 'var(--panel-border)'}`,
                                         textAlign: 'left',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        transition: 'background 0.15s',
+                                        justifyContent: 'space-between'
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(52,152,219,0.15)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                                 >
                                     <div>
-                                        <div style={{ color: item.rarityColor || '#fff', fontWeight: 'bold', fontSize: '0.8rem' }}>{item.name}</div>
-                                        <div style={{ fontSize: '0.65rem', color: '#bdc3c7' }}>
+                                        <div style={{ color: item.rarityColor || '#fff', fontWeight: 'bold', fontSize: '0.85rem' }}>{item.name}</div>
+                                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                             {Object.entries(item.stats || {}).map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(' ')}
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: '0.65rem', color: item.rarityColor, background: `${item.rarityColor}22`, padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                                    <div style={{ fontSize: '0.65rem', color: item.rarityColor, background: `${item.rarityColor}22`, padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
                                         {item.rarity}
                                     </div>
-                                </button>
+                                </GameButton>
                             ));
                         })()}
                     </div>
@@ -262,45 +264,36 @@ const CharacterDetailsPanel = () => {
             </div>
 
             {/* Upgrade Button */}
-            <button
+            <GameButton
                 onClick={handleUpgrade}
                 disabled={gold < upgradeCost}
                 style={{
                     width: '100%',
-                    padding: '0.7rem',
-                    background: gold >= upgradeCost ? '#2980b9' : '#7f8c8d',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: 'white',
+                    padding: '0.8rem',
+                    background: gold >= upgradeCost ? 'var(--accent-heal)' : 'var(--bg-panel)',
+                    border: gold >= upgradeCost ? '1px solid var(--accent-heal)' : '1px solid var(--panel-border)',
+                    marginBottom: '0.8rem',
+                    fontSize: '1rem',
                     fontWeight: 'bold',
-                    fontSize: '0.95rem',
-                    cursor: gold >= upgradeCost ? 'pointer' : 'not-allowed',
-                    marginBottom: '0.5rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
+                    color: gold >= upgradeCost ? '#fff' : '#888'
                 }}
             >
-                <ArrowUpCircle size={18} />
+                <ArrowUpCircle size={20} />
                 Upgrade ({upgradeCost} G)
-            </button>
+            </GameButton>
 
-            <button
+            <GameButton
                 onClick={handleDismiss}
                 style={{
                     width: '100%',
-                    padding: '0.5rem',
-                    background: 'none',
-                    border: '1px solid #c0392b',
-                    borderRadius: '8px',
-                    color: '#c0392b',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem'
+                    padding: '0.6rem',
+                    background: 'rgba(231, 76, 60, 0.2)',
+                    border: '1px solid #e74c3c',
+                    color: '#e74c3c', // danger
                 }}
             >
-                Dismiss Character
-            </button>
+                <X size={14} /> Dismiss Character
+            </GameButton>
         </div>
     );
 };

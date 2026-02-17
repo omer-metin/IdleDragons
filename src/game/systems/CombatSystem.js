@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import usePartyStore from '../../store/usePartyStore';
+import AudioManager from '../../audio/AudioManager';
 
 class CombatSystem {
     constructor() {
@@ -57,6 +58,12 @@ class CombatSystem {
 
         target.takeDamage(finalDmg);
         this.showDamageText(target, finalDmg, false);
+
+        // SFX based on source class
+        const cls = source.data?.class;
+        if (cls === 'Archer') AudioManager.playSFX('hit_arrow');
+        else if (cls === 'Mage') AudioManager.playSFX('hit_magic');
+        else AudioManager.playSFX('hit_melee');
     }
 
     // Enemy attacks Hero
@@ -66,6 +73,7 @@ class CombatSystem {
         const finalDmg = target.takeDamage(amount);
         if (finalDmg > 0) {
             this.showDamageText(target, finalDmg, true);
+            AudioManager.playSFX('hit_enemy_attack');
         }
     }
 
@@ -145,6 +153,39 @@ class CombatSystem {
             this.scene.app.ticker.add(pTick);
         }
     }
+
+    showDeathEffect(target) {
+        if (!this.scene) return;
+
+        // Explosion of particles
+        for (let i = 0; i < 15; i++) {
+            const p = new PIXI.Graphics();
+            p.beginFill(target.isBoss ? 0xf1c40f : 0x8e44ad);
+            p.drawCircle(0, 0, 3 + Math.random() * 3);
+            p.endFill();
+            p.x = target.x;
+            p.y = target.y - 20;
+            this.scene.vfxContainer.addChild(p);
+
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 4;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+
+            let alpha = 1.0;
+            const tick = (delta) => {
+                p.x += vx * delta;
+                p.y += vy * delta;
+                p.alpha -= 0.03 * delta;
+                if (p.alpha <= 0) {
+                    this.scene.app.ticker.remove(tick);
+                    p.destroy();
+                }
+            };
+            this.scene.app.ticker.add(tick);
+        }
+    }
+
     // Find lowest HP hero (for Cleric healing)
     getLowestHpHero(healer) {
         if (!this.scene) return null;
@@ -209,6 +250,7 @@ class CombatSystem {
         };
 
         this.scene.app.ticker.add(tick);
+        AudioManager.playSFX('heal');
     }
 }
 

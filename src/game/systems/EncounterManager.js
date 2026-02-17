@@ -4,6 +4,9 @@ import useResourceStore from '../../store/useResourceStore';
 import useMetaStore from '../../store/useMetaStore';
 import usePartyStore from '../../store/usePartyStore';
 import useLootStore from '../../store/useLootStore';
+import AudioManager from '../../audio/AudioManager';
+import useToastStore from '../../store/useToastStore';
+import CombatSystem from './CombatSystem';
 
 class EncounterManager {
     constructor() {
@@ -17,6 +20,8 @@ class EncounterManager {
 
     bindScene(scene) {
         this.scene = scene;
+        // Also init Audio BGM if game running? 
+        // Can't assume user interracted yet.
     }
 
     getEnemyStats(zone) {
@@ -76,6 +81,7 @@ class EncounterManager {
 
         // Boss wave: only 1 enemy (the boss)
         if (isBossWave) {
+            // Spawn the boss if no living enemies exist and none have been killed yet
             if (aliveEnemies === 0 && gameState.enemiesKilledThisWave === 0) {
                 this.spawnTimer += delta;
                 if (this.spawnTimer >= this.spawnInterval) {
@@ -96,43 +102,70 @@ class EncounterManager {
             }
         }
 
-        // Update Enemies
+        // Update Enemies — collect removals first to avoid iterator invalidation
+        const toRemove = [];
         for (const enemy of this.enemies.values()) {
-            enemy.update(delta);
+            if (enemy && !enemy.destroyed && enemy.transform) {
+                enemy.update(delta);
+            }
 
-            // Remove if dead
             if (enemy.hp <= 0) {
                 this.onEnemyKilled(enemy);
-                this.removeEnemy(enemy.id);
+                toRemove.push(enemy.id);
                 continue;
             }
 
             // Remove if way off screen
             const bounds = 2000;
             if (enemy.x < -bounds || enemy.x > bounds || enemy.y < -bounds || enemy.y > bounds) {
-                this.removeEnemy(enemy.id);
+                toRemove.push(enemy.id);
             }
+        }
+
+        // Batch remove after iteration completes
+        for (const id of toRemove) {
+            this.removeEnemy(id);
         }
     }
 
     onEnemyKilled(enemy) {
-        // Grant rewards
+        // Rewards
         const metaUpgrades = useMetaStore.getState().upgrades;
         const goldMult = 1 + (metaUpgrades.goldGain || 0) * 0.25;
+        const goldAmount = Math.floor(enemy.goldReward * goldMult);
+        const xpAmount = enemy.xpReward;
 
-        useResourceStore.getState().addGold(Math.floor(enemy.goldReward * goldMult));
-        useResourceStore.getState().addXp(enemy.xpReward);
+        useResourceStore.getState().addGold(goldAmount);
+        useResourceStore.getState().addXp(xpAmount);
         useGameStore.getState().addKill();
 
-        // XP distribution to party members
-        const xpMult = 1 + (metaUpgrades.xpGain || 0) * 0.25;
-        usePartyStore.getState().distributeXp(Math.floor(enemy.xpReward * xpMult));
+        // Audio & Visuals
+        AudioManager.playSFX(enemy.isBoss ? 'boss_death' : 'enemy_death');
+        CombatSystem.showDeathEffect(enemy);
+        useToastStore.getState().addGoldToast(goldAmount);
+        useToastStore.getState().addXpToast(xpAmount);
 
-        // Loot roll — bosses drop 3 items
+        // XP distribution
+        const xpMult = 1 + (metaUpgrades.xpGain || 0) * 0.25;
+        usePartyStore.getState().distributeXp(Math.floor(xpAmount * xpMult));
+
+        // Loot roll
         const { zone } = useGameStore.getState();
         const lootRolls = enemy.isBoss ? 3 : 1;
+
         for (let i = 0; i < lootRolls; i++) {
-            useLootStore.getState().rollLoot(zone);
+            const item = useLootStore.getState().rollLoot(zone);
+            if (item) {
+                // Visual Feedback for Loot
+                useToastStore.getState().addToast({
+                    type: 'loot',
+                    message: `Found: ${item.name}`,
+                    icon: '🎁', // Changed from 📦 for more excitement
+                    color: item.rarityColor || '#f1c40f',
+                    duration: 4000
+                });
+                AudioManager.playSFX('ui_hover'); // Or a specific loot sound if available
+            }
         }
     }
 
@@ -142,10 +175,21 @@ class EncounterManager {
         this.waveTransitionTimer = 120; // ~2 second pause
         this.spawnTimer = 0;
 
+        // Audio & Feedback
+        AudioManager.playSFX('wave_clear');
+        const { wave } = useGameStore.getState();
+        useToastStore.getState().addToast({
+            type: 'wave',
+            message: `Wave ${wave} Complete`,
+            icon: '⚔️',
+            color: '#3498db'
+        });
+
         // Clear remaining dead enemies from scene
-        for (const [id, enemy] of this.enemies) {
-            this.removeEnemy(id);
-        }
+        // Logic: convert map keys to array to avoid iterator issues
+        const toRemove = [];
+        for (const [id] of this.enemies) toRemove.push(id);
+        toRemove.forEach(id => this.removeEnemy(id));
         this.enemies.clear();
 
         // Advance wave
@@ -153,10 +197,18 @@ class EncounterManager {
 
         // Zone bonus: extra gold on zone advance
         const gameState = useGameStore.getState();
+
+        // If we wrapped to wave 1, it means we entered a new zone
         if (gameState.wave === 1) {
-            // Just advanced to a new zone
             const zoneBonus = gameState.zone * 50;
             useResourceStore.getState().addGold(zoneBonus);
+            useToastStore.getState().addToast({
+                type: 'zone',
+                message: `Zone ${gameState.zone} Reached!`,
+                icon: 'mnt',
+                color: '#8e44ad'
+            });
+            AudioManager.startBGM('adventure');
         }
     }
 
@@ -175,9 +227,10 @@ class EncounterManager {
             goldReward: stats.goldReward,
             xpReward: stats.xpReward,
             name: name,
+            zone: zone
         });
 
-        // Spawn at random edge
+        // Spawn at random edge (User requested random directions)
         const edge = Math.floor(Math.random() * 4);
         const buffer = 50;
         const width = this.scene.app.screen.width;
@@ -187,22 +240,10 @@ class EncounterManager {
         let screenY = 0;
 
         switch (edge) {
-            case 0:
-                screenX = Math.random() * width;
-                screenY = -buffer;
-                break;
-            case 1:
-                screenX = width + buffer;
-                screenY = Math.random() * height;
-                break;
-            case 2:
-                screenX = Math.random() * width;
-                screenY = height + buffer;
-                break;
-            case 3:
-                screenX = -buffer;
-                screenY = Math.random() * height;
-                break;
+            case 0: screenX = Math.random() * width; screenY = -buffer; break; // Top
+            case 1: screenX = width + buffer; screenY = Math.random() * height; break; // Right
+            case 2: screenX = Math.random() * width; screenY = height + buffer; break; // Bottom
+            case 3: screenX = -buffer; screenY = Math.random() * height; break; // Left (Behind)
         }
 
         enemy.x = screenX - this.scene.isoContainer.x;
@@ -228,15 +269,28 @@ class EncounterManager {
             xpReward: stats.xpReward,
             name: name,
             isBoss: true,
+            zone: zone
         });
 
-        // Spawn boss from the top
         const width = this.scene.app.screen.width;
-        enemy.x = (width / 2) - this.scene.isoContainer.x;
-        enemy.y = -100 - this.scene.isoContainer.y;
+        const height = this.scene.app.screen.height;
+
+        // Boss spawns right, maybe slightly elevated
+        enemy.x = (width + 100) - this.scene.isoContainer.x;
+        enemy.y = (height / 2) - this.scene.isoContainer.y; // Centered vertically relative to party
 
         this.enemies.set(enemy.id, enemy);
         this.scene.addEnemy(enemy);
+
+        AudioManager.playSFX('boss_wave_start');
+        AudioManager.startBGM('boss');
+        useToastStore.getState().addToast({
+            type: 'boss',
+            message: `⚠ ${name} appeared!`,
+            icon: '👹',
+            color: '#e74c3c',
+            duration: 5000
+        });
     }
 
     removeEnemy(id) {
@@ -249,11 +303,13 @@ class EncounterManager {
         }
     }
 
-    // Reset for TPK
     reset() {
-        for (const [id] of this.enemies) {
+        // Safe remove
+        const toRemove = [];
+        for (const [id] of this.enemies) toRemove.push(id);
+        toRemove.forEach(id => {
             if (this.scene) this.scene.removeEnemy(id);
-        }
+        });
         this.enemies.clear();
         this.spawnTimer = 0;
         this.isTransitioning = false;

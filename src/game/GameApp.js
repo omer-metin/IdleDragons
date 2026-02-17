@@ -16,7 +16,7 @@ class GameApp {
         if (this.app) return;
 
         this.app = new PIXI.Application({
-            background: '#1099bb',
+            background: '#111118', // Correct Dark Theme Background
             resizeTo: container,
             width: container.clientWidth,
             height: container.clientHeight,
@@ -29,11 +29,18 @@ class GameApp {
         this.scene = new AdventureScene(this.app);
         this.app.stage.addChild(this.scene);
 
+        // Enable Stage Interactivity
+        this.app.stage.eventMode = 'static';
+        this.app.stage.interactive = true;
+        this.app.stage.hitArea = this.app.screen;
+
         // Bind Scene to EncounterManager
         EncounterManager.bindScene(this.scene);
 
         // Initial Resize
-        this.scene.resize(this.app.screen.width, this.app.screen.height);
+        if (this.scene && this.scene.resize) {
+            this.scene.resize(this.app.screen.width, this.app.screen.height);
+        }
 
         // Start Loop
         window.PIXI = PIXI;
@@ -48,13 +55,18 @@ class GameApp {
         });
 
         this.app.renderer.on('resize', (w, h) => {
-            if (this.scene) this.scene.resize(w, h);
+            if (this.scene && this.scene.resize) this.scene.resize(w, h);
         });
     }
 
     update(delta) {
         const isRunning = useGameStore.getState().isRunning;
         const timeMultiplier = useGameStore.getState().timeMultiplier;
+
+        // Visuals/Scene Update should run ALWAYS (for Lobby, Camera, etc)
+        if (this.scene) {
+            this.scene.update(delta * (isRunning ? timeMultiplier : 1));
+        }
 
         if (!isRunning) return;
 
@@ -63,11 +75,6 @@ class GameApp {
 
         // Update EncounterManager
         EncounterManager.update(delta * timeMultiplier);
-
-        // Update Scene
-        if (this.scene) {
-            this.scene.update(delta * timeMultiplier);
-        }
 
         // Increment Distance
         useGameStore.getState().incrementDistance(0.1 * delta * timeMultiplier);

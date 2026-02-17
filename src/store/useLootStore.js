@@ -33,7 +33,7 @@ function rollRarity() {
 }
 
 const useLootStore = create((set, get) => ({
-    dropChance: 0.3, // 30% chance per enemy kill
+    dropChance: 0.5, // 50% chance for better feedback loops
 
     rollLoot: (zone) => {
         if (Math.random() > get().dropChance) return null;
