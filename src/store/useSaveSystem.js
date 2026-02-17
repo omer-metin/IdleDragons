@@ -3,6 +3,8 @@ import useMetaStore from './useMetaStore';
 import usePartyStore from './usePartyStore';
 import useResourceStore from './useResourceStore';
 import useInventoryStore from './useInventoryStore';
+import useTutorialStore from './useTutorialStore';
+import useAdStore from './useAdStore';
 
 const SAVE_KEY = 'idlesndragons_save';
 const SAVE_INTERVAL = 30000; // 30 seconds
@@ -11,6 +13,8 @@ class SaveSystem {
     constructor() {
         this.saveIntervalId = null;
         this.lastSaveTime = null;
+        this._hardResetting = false;
+        this._boundSave = () => this.save();
     }
 
     start() {
@@ -26,7 +30,7 @@ class SaveSystem {
         }, SAVE_INTERVAL);
 
         // Save on page unload
-        window.addEventListener('beforeunload', () => this.save());
+        window.addEventListener('beforeunload', this._boundSave);
     }
 
     stop() {
@@ -34,9 +38,11 @@ class SaveSystem {
             clearInterval(this.saveIntervalId);
             this.saveIntervalId = null;
         }
+        window.removeEventListener('beforeunload', this._boundSave);
     }
 
     save() {
+        if (this._hardResetting) return;
         try {
             const data = {
                 version: 1,
@@ -67,6 +73,8 @@ class SaveSystem {
                     totalKills: useGameStore.getState().totalKills,
                     gameState: useGameStore.getState().gameState,
                 },
+                tutorial: useTutorialStore.getState().getSaveData(),
+                ads: useAdStore.getState().getSaveData(),
             };
 
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -98,9 +106,10 @@ class SaveSystem {
 
             // Restore Party
             if (data.party) {
-                // Ensure grid width is at least 5 for linear layout
-                const savedGrid = data.party.gridSize || { width: 5, height: 1 };
-                if (savedGrid.width < 5) savedGrid.width = 5;
+                // Use saved grid size, or compute from meta upgrades if missing
+                const gridUpgrade = data.meta?.upgrades?.gridSize || 0;
+                const computedSize = 3 + gridUpgrade;
+                const savedGrid = data.party.gridSize || { width: computedSize, height: computedSize };
 
                 usePartyStore.setState({
                     members: data.party.members || [],
@@ -141,6 +150,16 @@ class SaveSystem {
                 if (elapsed > 60) { // At least 1 minute away
                     this.applyOfflineEarnings(elapsed, data);
                 }
+            }
+
+            // Restore Tutorial state
+            if (data.tutorial) {
+                useTutorialStore.getState().loadSaveData(data.tutorial);
+            }
+
+            // Restore Ad/Boost state
+            if (data.ads) {
+                useAdStore.getState().loadSaveData(data.ads);
             }
 
             return data;
@@ -184,10 +203,22 @@ class SaveSystem {
     }
 
     hardReset() {
-        if (confirm('Are you sure you want to completely restart? All progress will be lost.')) {
-            this.clearSave();
-            window.location.reload();
-        }
+        useGameStore.getState().showConfirm({
+            title: 'Hard Reset?',
+            message: 'Are you sure you want to completely restart? All progress including meta-progression will be lost.',
+            isDanger: true,
+            confirmText: 'NUKE IT',
+            onConfirm: () => {
+                // Prevent any saves from firing during unload
+                this._hardResetting = true;
+                // Stop interval and remove beforeunload handler
+                this.stop();
+                // Clear saved data
+                this.clearSave();
+                // Reload the page — save can't fire because we removed the handler
+                window.location.reload();
+            }
+        });
     }
 }
 

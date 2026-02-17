@@ -1,11 +1,16 @@
 import { create } from 'zustand';
+import useAdStore from './useAdStore';
 
 const useResourceStore = create((set, get) => ({
     gold: 0,
     xp: 0,
     materials: {},
 
-    addGold: (amount) => set((state) => ({ gold: state.gold + amount })),
+    addGold: (amount) => set((state) => {
+        const isBoostActive = useAdStore.getState().goldBoostActive;
+        const finalAmount = isBoostActive ? amount * 2 : amount;
+        return { gold: state.gold + finalAmount };
+    }),
     removeGold: (amount) => set((state) => ({ gold: Math.max(0, state.gold - amount) })),
 
     addXp: (amount) => set((state) => ({ xp: state.xp + amount })),

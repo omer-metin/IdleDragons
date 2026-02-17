@@ -120,6 +120,10 @@ const useRecruitmentStore = create((set, get) => ({
         return false;
     },
 
+    freeReroll: () => {
+        get().generateCandidates();
+    },
+
     recruit: (candidateIndex, x, y) => {
         // Enforce Lobby State
         const { gameState } = useGameStore.getState();

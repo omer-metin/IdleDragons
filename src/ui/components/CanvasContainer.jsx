@@ -19,6 +19,7 @@ const CanvasContainer = ({ onInitComplete }) => {
     return (
         <div
             ref={containerRef}
+            data-tutorial="grid"
             style={{
                 position: 'absolute',
                 top: 0,

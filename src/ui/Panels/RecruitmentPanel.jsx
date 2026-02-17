@@ -3,11 +3,14 @@ import useRecruitmentStore from '../../store/useRecruitmentStore';
 import { CLASS_DEFINITIONS } from '../../store/useRecruitmentStore';
 import useGameStore from '../../store/useGameStore';
 import useMetaStore from '../../store/useMetaStore';
-import { UserPlus, RefreshCw, X, Sword, Shield, Heart, Crosshair, Zap } from 'lucide-react';
+import useTutorialStore from '../../store/useTutorialStore';
+import useAdStore from '../../store/useAdStore';
+import { UserPlus, RefreshCw, X, Sword, Shield, Heart, Crosshair, Zap, Video } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 import useToastStore from '../../store/useToastStore';
 import CrazyGamesSDK from '../../platform/CrazyGames';
+import { RerollAdButton } from '../components/AdButtons';
 
 const RecruitmentPanel = () => {
     const { activePanel, closePanel, selectedGridSlot, gameState } = useGameStore();
@@ -32,7 +35,8 @@ const RecruitmentPanel = () => {
         if (!selectedGridSlot) return;
         const success = recruit(index, selectedGridSlot.x, selectedGridSlot.y);
         if (success) {
-            AudioManager.playSFX('ui_recruit'); // Need to ensure this SFX exists or defaults
+            AudioManager.playSFX('ui_recruit');
+            useTutorialStore.getState().onHeroRecruited();
             closePanel();
         }
     };
@@ -50,7 +54,7 @@ const RecruitmentPanel = () => {
             border: '2px solid var(--accent-secondary)',
             borderRadius: 'var(--radius-xl)',
             padding: '2rem',
-            width: '900px',
+            width: 'min(900px, 92vw)',
             maxWidth: '95vw',
             color: 'var(--text-main)',
             boxShadow: '0 20px 60px rgba(0,0,0,0.8)',
@@ -160,7 +164,7 @@ const RecruitmentPanel = () => {
                 })}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem', gap: '1rem' }}>
                 <GameButton
                     onClick={reroll}
                     disabled={souls < rerollCost}
@@ -172,14 +176,17 @@ const RecruitmentPanel = () => {
                         fontWeight: 'bold'
                     }}
                 >
-                    <RefreshCw size={20} /> Reroll Names ({rerollCost} Souls)
+                    <RefreshCw size={20} /> Reroll ({rerollCost} Souls)
                 </GameButton>
+
+                <RerollAdButton />
 
                 <GameButton
                     onClick={() => {
-                        CrazyGamesSDK.showRewardedAd(() => {
+                        AudioManager.playSFX('ui_click');
+                        useAdStore.getState().watchAd('souls', () => {
                             useMetaStore.getState().addSouls(25);
-                            AudioManager.playSFX('ui_recruit'); // sound
+                            AudioManager.playSFX('ui_recruit');
                             useToastStore.getState().addToast({
                                 type: 'resource',
                                 message: 'Received 25 Souls!',
@@ -189,15 +196,17 @@ const RecruitmentPanel = () => {
                         });
                     }}
                     style={{
-                        marginLeft: '1rem',
                         padding: '0.8rem 1.5rem',
                         background: '#8e44ad',
                         border: 'none',
                         fontSize: '1.1rem',
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
                     }}
                 >
-                    📺 Get 25 Souls
+                    <Video size={18} /> Get 25 Souls
                 </GameButton>
             </div>
         </div>

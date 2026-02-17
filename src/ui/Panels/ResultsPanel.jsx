@@ -4,6 +4,7 @@ import useGameStore from '../../store/useGameStore';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 import { Skull, TrendingUp, Clock, MapPin } from 'lucide-react';
+import { ReviveAdButton } from '../components/AdButtons';
 
 const ResultsPanel = () => {
     const { getPendingSouls, triggerTPK, souls } = useMetaStore();
@@ -67,7 +68,7 @@ const ResultsPanel = () => {
                 borderRadius: 'var(--radius-xl)',
                 border: '2px solid var(--accent-danger)',
                 background: 'rgba(20, 10, 10, 0.95)',
-                width: '500px',
+                width: 'min(500px, 92vw)',
                 textAlign: 'center',
                 boxShadow: '0 0 100px rgba(192, 57, 43, 0.3)'
             }}>
@@ -120,6 +121,15 @@ const ResultsPanel = () => {
                 >
                     <Skull size={24} /> ACCEPT TPK
                 </GameButton>
+
+                <div style={{ marginTop: '1rem' }}>
+                    <ReviveAdButton onRevive={() => {
+                        // Close Results Panel logic? ResultsPanel renders if gameState === 'GAMEOVER'.
+                        // ReviveAdButton sets gameState to RUNNING. So this panel will unmount automatically.
+                        // We might want to play a sound or toast here.
+                        AudioManager.playSFX('ui_equip');
+                    }} />
+                </div>
             </div>
         </div>
     );

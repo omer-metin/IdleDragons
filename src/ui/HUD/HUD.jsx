@@ -4,6 +4,7 @@ import useGameStore from '../../store/useGameStore';
 import { Coins, Swords, Pause, Play, Zap, FastForward, Skull, TrendingUp, LogOut } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
+import { GoldBoostButton } from '../components/AdButtons';
 
 const HUD = () => {
     const { gold, xp } = useResourceStore();
@@ -28,7 +29,7 @@ const HUD = () => {
             boxSizing: 'border-box'
         }}>
             {/* Top Left: Resources */}
-            <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-lg)', pointerEvents: 'auto', minWidth: '140px' }}>
+            <div className="glass-panel hud-resources" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.6rem 1rem', borderRadius: 'var(--radius-lg)', pointerEvents: 'auto', minWidth: '140px' }}>
                 <div style={{ display: 'flex', gap: '1.2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} title="Gold">
                         <Coins size={18} color="var(--accent-gold)" />
@@ -39,13 +40,16 @@ const HUD = () => {
                         <span className="font-display" style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--accent-info)' }}>{xp}</span>
                     </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Kills</span> <span style={{ color: 'white' }}>{totalKills}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>
+                        Kills <span style={{ color: 'white' }}>{totalKills}</span>
+                    </div>
+                    <GoldBoostButton />
                 </div>
             </div>
 
             {/* Top Center: Zone/Wave */}
-            <div className="glass-panel" style={{
+            <div className="glass-panel hud-zone" style={{
                 position: 'absolute',
                 left: '50%',
                 transform: 'translateX(-50%)',
@@ -79,7 +83,7 @@ const HUD = () => {
             </div>
 
             {/* Top Right: Controls */}
-            <div style={{
+            <div className="hud-controls" style={{
                 position: 'absolute',
                 top: '1rem',
                 right: '1rem',
@@ -92,18 +96,21 @@ const HUD = () => {
                 <GameButton
                     onClick={togglePause}
                     style={{
-                        padding: '0.6rem 1.2rem',
-                        background: '#FFFFFF', // Pure White
-                        border: '3px solid #000000', // Thick Black Border
-                        minWidth: '120px',
+                        padding: '0.6rem', // Reduced padding
+                        background: '#FFFFFF',
+                        border: '3px solid #000000',
+                        minWidth: '44px', // Square-ish
+                        width: '44px',
+                        height: '44px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         boxShadow: '0 6px 12px rgba(0,0,0,0.6)',
-                        color: '#000000', // Pure Black Text
-                        fontWeight: '900',
-                        fontSize: '1rem'
+                        color: '#000000'
                     }}
+                    title={isRunning ? "Pause Game" : "Resume Game"}
                 >
-                    {isRunning ? <Pause size={18} fill="#000000" /> : <Play size={18} fill="#2ecc71" />}
-                    {isRunning ? 'PAUSE' : 'RESUME'}
+                    {isRunning ? <Pause size={24} fill="#000000" /> : <Play size={24} fill="#2ecc71" />}
                 </GameButton>
 
                 {/* Speed Controls */}

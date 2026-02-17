@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import CanvasContainer from './components/CanvasContainer';
+import OfflineEarningsPopup from './components/OfflineEarningsPopup';
 import LoadingScreen from './components/LoadingScreen';
+import TutorialOverlay from './components/TutorialOverlay';
 import HUD from './HUD/HUD';
 import PartyPanel from './Panels/PartyPanel';
 import PartySidebar from './HUD/PartySidebar';
@@ -12,19 +14,60 @@ import LobbyPanel from './Panels/LobbyPanel';
 import ResultsPanel from './Panels/ResultsPanel';
 import HelpPanel from './Panels/HelpPanel';
 import useGameStore from '../store/useGameStore';
+import useTutorialStore from '../store/useTutorialStore';
+import useMetaStore from '../store/useMetaStore';
+import usePartyStore from '../store/usePartyStore';
 import SaveSystem from '../store/useSaveSystem';
 import ToastNotification from './components/ToastNotification';
 import MainMenuPanel from './Panels/MainMenuPanel';
 import TPKPanel from './Panels/TPKPanel';
 import SettingsPanel from './Panels/SettingsPanel';
 import CreditsPanel from './Panels/CreditsPanel';
+import PauseOverlay from './Panels/PauseOverlay';
+import ConfirmDialog from './components/ConfirmDialog';
 import CrazyGamesSDK from '../platform/CrazyGames';
 
 const App = () => {
     const gameState = useGameStore(state => state.gameState);
     const [isLoading, setIsLoading] = useState(true);
     const [loadProgress, setLoadProgress] = useState(0);
+    const [offlineEarnings, setOfflineEarnings] = useState(null);
     const loadStartTime = useRef(Date.now());
+
+    // Global Input Listeners (Escape -> Close Panel / Toggle Pause)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                const { activePanel, closePanel, gameState, togglePause, confirmation, closeConfirm } = useGameStore.getState();
+
+                // Priority: Confirm Dialog -> Active Panel -> Pause Toggle
+                if (confirmation?.isOpen) {
+                    closeConfirm();
+                    return;
+                }
+
+                if (activePanel) {
+                    closePanel();
+                } else if (gameState === 'RUNNING' || gameState === 'PAUSED') {
+                    togglePause();
+                }
+            }
+        };
+
+        const handleBlur = () => {
+            const { gameState, togglePause } = useGameStore.getState();
+            if (gameState === 'RUNNING') {
+                togglePause();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('blur', handleBlur);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('blur', handleBlur);
+        };
+    }, []);
 
     // Signal SDK loading start on mount
     useEffect(() => {
@@ -52,9 +95,32 @@ const App = () => {
     useEffect(() => {
         if (!isLoading) {
             SaveSystem.start();
+
+            // Check for offline earnings immediately after load
+            const offlineData = SaveSystem.getOfflineSummary();
+            if (offlineData) {
+                setOfflineEarnings(offlineData);
+            }
+
             return () => SaveSystem.stop();
         }
     }, [isLoading]);
+
+    // Tutorial: start when entering LOBBY for first time (Gen 1, no party)
+    useEffect(() => {
+        if (gameState === 'LOBBY') {
+            const generation = useMetaStore.getState().generation;
+            const partySize = usePartyStore.getState().members.length;
+            const { isCompleted, isSkipped } = useTutorialStore.getState();
+            if (generation <= 1 && partySize === 0 && !isCompleted && !isSkipped) {
+                useTutorialStore.getState().startTutorial();
+            }
+        }
+        // Tutorial: trigger TPK step on game over
+        if (gameState === 'GAMEOVER') {
+            useTutorialStore.getState().onGameOver();
+        }
+    }, [gameState]);
 
     // Callback from CanvasContainer when GameApp.init() completes
     const handleInitComplete = useCallback(() => {
@@ -71,12 +137,41 @@ const App = () => {
         }, remaining);
     }, []);
 
+    const handleOfflineClaim = () => {
+        setOfflineEarnings(null);
+    };
+
+    const handleOfflineDouble = () => {
+        CrazyGamesSDK.showRewardedAd(() => {
+            // Reward: Add the gold AGAIN (doubling it)
+            // The first 1x was already added by SaveSystem.load()
+            if (offlineEarnings && offlineEarnings.goldEarned > 0) {
+                import('../store/useResourceStore').then(({ default: useResourceStore }) => {
+                    useResourceStore.getState().addGold(offlineEarnings.goldEarned);
+                    useGameStore.getState().showToast(`Doubled! Earned ${offlineEarnings.goldEarned} extra Gold!`, 'success');
+                    setOfflineEarnings(null);
+                });
+            }
+        }, (error) => {
+            useGameStore.getState().showToast('Ad failed to load. Try again later.', 'error');
+        });
+    };
+
     return (
         <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
             <CanvasContainer onInitComplete={handleInitComplete} />
             <LoadingScreen progress={loadProgress} visible={isLoading} />
+            <TutorialOverlay />
             <ToastNotification />
             <PartySidebar />
+
+            {offlineEarnings && (
+                <OfflineEarningsPopup
+                    offlineData={offlineEarnings}
+                    onClaim={handleOfflineClaim}
+                    onDouble={handleOfflineDouble}
+                />
+            )}
 
             {gameState === 'MENU' ? (
                 <>
@@ -94,6 +189,7 @@ const App = () => {
                     <SettingsPanel />
                     <CreditsPanel />
                     <HelpPanel />
+                    {gameState === 'PAUSED' && <PauseOverlay />}
                 </>
             ) : gameState === 'LOBBY' ? (
                 <>
@@ -108,6 +204,7 @@ const App = () => {
             ) : gameState === 'GAMEOVER' ? (
                 <ResultsPanel />
             ) : null}
+            <ConfirmDialog />
         </div>
     );
 };

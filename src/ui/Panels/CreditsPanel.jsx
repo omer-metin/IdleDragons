@@ -40,7 +40,7 @@ const CreditsPanel = () => {
             border: '2px solid var(--accent-arcane)',
             borderRadius: 'var(--radius-xl)',
             padding: '2rem',
-            width: '500px',
+            width: 'min(500px, 92vw)',
             maxHeight: '80vh',
             overflowY: 'auto',
             color: 'var(--text-main)',

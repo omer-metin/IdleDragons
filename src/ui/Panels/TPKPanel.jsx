@@ -20,10 +20,18 @@ const TPKPanel = () => {
     const pendingSouls = getPendingSouls();
 
     const handleTPK = () => {
-        // Trigger TPK (Full Reset)
-        triggerTPK();
-        closePanel();
-        AudioManager.playSFX('ui_equip'); // Heavy sound
+        useGameStore.getState().showConfirm({
+            title: 'Confirm TPK?',
+            message: `You are about to reset all progress for ${pendingSouls} Souls. This cannot be undone.`,
+            isDanger: true,
+            confirmText: 'ASCEND',
+            onConfirm: () => {
+                // Trigger TPK (Full Reset)
+                triggerTPK();
+                closePanel();
+                AudioManager.playSFX('ui_equip'); // Heavy sound
+            }
+        });
     };
 
     return (
@@ -36,7 +44,7 @@ const TPKPanel = () => {
             border: '2px solid var(--accent-danger)',
             borderRadius: 'var(--radius-xl)',
             padding: '2rem',
-            width: '500px',
+            width: 'min(500px, 92vw)',
             color: 'var(--text-main)',
             boxShadow: '0 0 100px rgba(192, 57, 43, 0.6)',
             zIndex: 2000,

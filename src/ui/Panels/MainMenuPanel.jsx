@@ -45,7 +45,7 @@ const MainMenuPanel = () => {
                 "The Game Master's burden is eternal..."
             </div>
 
-            <div className="anim-scale-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '300px', animationDelay: '0.8s' }}>
+            <div className="anim-scale-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: 'min(300px, 85vw)', animationDelay: '0.8s' }}>
                 <GameButton
                     onClick={handleNewCampaign}
                     style={{
@@ -93,8 +93,7 @@ const MainMenuPanel = () => {
                         gap: '1rem',
                         background: 'transparent',
                         color: '#bdc3c7',
-                        border: 'none',
-                        fontSize: '0.9rem'
+                        border: 'none'
                     }}
                 >
                     <Info size={18} />

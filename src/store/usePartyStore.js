@@ -161,12 +161,15 @@ const usePartyStore = create((set, get) => ({
         }, 0);
     },
 
-    reviveAll: () => {
+    reviveAll: (percentage = 1.0) => {
         set((state) => ({
-            members: state.members.map(m => ({
-                ...m,
-                currentHp: m.stats.hp + (m.equipment?.combinedStats?.hp || 0)
-            }))
+            members: state.members.map(m => {
+                const maxHp = m.stats.hp + (m.equipment?.combinedStats?.hp || 0);
+                return {
+                    ...m,
+                    currentHp: Math.floor(maxHp * percentage)
+                };
+            })
         }));
     },
 

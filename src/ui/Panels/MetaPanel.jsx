@@ -42,7 +42,7 @@ const MetaPanel = () => {
             border: '2px solid var(--accent-secondary)',
             borderRadius: 'var(--radius-xl)',
             padding: '2rem',
-            width: '620px',
+            width: 'min(620px, 92vw)',
             maxHeight: '90vh',
             overflowY: 'auto',
             color: 'var(--text-main)',
@@ -58,7 +58,7 @@ const MetaPanel = () => {
             <div style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#bdc3c7' }}>Generation {generation}</div>
 
             {/* Stats Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '8px' }}>
                     <div style={{ fontSize: '0.7rem', color: '#bdc3c7' }}>Souls</div>
                     <div style={{ fontSize: '1.3rem', fontWeight: 'bold', color: '#f1c40f' }}>{souls}</div>

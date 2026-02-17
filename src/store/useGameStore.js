@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import CrazyGamesSDK from '../platform/CrazyGames';
 
 const useGameStore = create((set, get) => ({
     gameState: 'MENU', // 'MENU', 'LOBBY', 'RUNNING', 'PAUSED', 'GAMEOVER'
@@ -61,22 +62,32 @@ const useGameStore = create((set, get) => ({
         return wave === wavesPerZone;
     },
 
-    advanceWave: () => set((state) => {
+    advanceWave: () => {
+        const state = get();
         const nextWave = state.wave + 1;
+
         if (nextWave > state.wavesPerZone) {
             // Advance zone
-            return {
-                zone: state.zone + 1,
+            const newZone = state.zone + 1;
+
+            // Trigger Interstitial Ad every 3 zones
+            if (newZone % 3 === 0) {
+                CrazyGamesSDK.showInterstitialAd();
+            }
+
+            set({
+                zone: newZone,
                 wave: 1,
                 enemiesKilledThisWave: 0,
-                score: (state.zone + 1) * 100 + 10,
-            };
+                score: newZone * 100 + 10,
+            });
+        } else {
+            set({
+                wave: nextWave,
+                enemiesKilledThisWave: 0,
+            });
         }
-        return {
-            wave: nextWave,
-            enemiesKilledThisWave: 0,
-        };
-    }),
+    },
 
     restartZone: () => set((state) => ({
         wave: 1,
@@ -101,6 +112,35 @@ const useGameStore = create((set, get) => ({
     openPanel: (panelName) => set({ activePanel: panelName }),
     closePanel: () => set({ activePanel: null, selectedGridSlot: null }),
     selectGridSlot: (x, y) => set({ selectedGridSlot: { x, y } }),
+
+    // Confirmation Dialog
+    confirmation: {
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        onCancel: null,
+        isDanger: false,
+        confirmText: 'Confirm',
+        cancelText: 'Cancel'
+    },
+
+    showConfirm: ({ title, message, onConfirm, onCancel = null, isDanger = false, confirmText = 'Confirm', cancelText = 'Cancel' }) => set({
+        confirmation: {
+            isOpen: true,
+            title,
+            message,
+            onConfirm,
+            onCancel,
+            isDanger,
+            confirmText,
+            cancelText
+        }
+    }),
+
+    closeConfirm: () => set((state) => ({
+        confirmation: { ...state.confirmation, isOpen: false }
+    })),
 }));
 
 export default useGameStore;

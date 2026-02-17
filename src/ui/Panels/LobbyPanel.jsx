@@ -3,6 +3,7 @@ import useGameStore from '../../store/useGameStore';
 import useMetaStore from '../../store/useMetaStore';
 import useRecruitmentStore from '../../store/useRecruitmentStore';
 import usePartyStore from '../../store/usePartyStore';
+import useTutorialStore from '../../store/useTutorialStore';
 import { Play, Coins, Trophy, Skull, Swords, LogOut } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
@@ -169,9 +170,11 @@ const LobbyPanel = () => {
 
                     {/* Start Button */}
                     <GameButton
+                        data-tutorial="start_button"
                         onClick={() => {
                             AudioManager.playSFX('ui_start_game');
                             AudioManager.startBGM('adventure');
+                            useTutorialStore.getState().onAdventureStarted();
                             startAdventure();
                         }}
                         disabled={!hasParty}

@@ -113,6 +113,42 @@ const CrazyGamesSDK = {
             // But if real SDK failed:
             if (onError) onError(e);
         }
+    },
+
+    async showInterstitialAd(callbacks) {
+        this.ensureInit();
+
+        try {
+            if (!this.sdk || !this.sdk.ad) {
+                // In mock mode, just log
+                console.log('Mock Interstitial Ad Shown');
+                this.gameplayStop();
+                setTimeout(() => {
+                    this.gameplayStart();
+                    if (callbacks && callbacks.adFinished) callbacks.adFinished();
+                }, 1000);
+                return;
+            }
+
+            await this.sdk.ad.requestAd('midgame', {
+                adStarted: () => {
+                    this.gameplayStop();
+                    if (callbacks && callbacks.adStarted) callbacks.adStarted();
+                },
+                adFinished: () => {
+                    this.gameplayStart();
+                    if (callbacks && callbacks.adFinished) callbacks.adFinished();
+                },
+                adError: (error) => {
+                    this.gameplayStart();
+                    console.error('Ad Error', error);
+                    if (callbacks && callbacks.adError) callbacks.adError(error);
+                }
+            });
+        } catch (e) {
+            console.error('Ad Exception', e);
+            if (callbacks && callbacks.adError) callbacks.adError(e);
+        }
     }
 };
 

@@ -66,7 +66,7 @@ const SettingsPanel = () => {
             border: '2px solid var(--panel-border)',
             borderRadius: 'var(--radius-xl)',
             padding: '2rem',
-            width: '450px',
+            width: 'min(450px, 92vw)',
             color: 'var(--text-main)',
             boxShadow: '0 0 50px rgba(0,0,0,0.5)',
             zIndex: 2500

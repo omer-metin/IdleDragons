@@ -27,7 +27,7 @@ const PartySidebar = () => {
     };
 
     return (
-        <div style={{
+        <div className="party-sidebar" style={{
             position: 'absolute',
             right: '10px',
             top: '50%',
@@ -48,6 +48,7 @@ const PartySidebar = () => {
                 return (
                     <div
                         key={member.id}
+                        className="party-portrait"
                         onClick={() => handleSelect(member)}
                         style={{
                             width: '60px',
@@ -64,7 +65,7 @@ const PartySidebar = () => {
                         }}
                     >
                         {/* Class Icon / Initial (Placeholder) */}
-                        <div style={{
+                        <div className="portrait-icon" style={{
                             width: '100%',
                             height: '100%',
                             display: 'flex',
@@ -78,7 +79,7 @@ const PartySidebar = () => {
                         </div>
 
                         {/* Level Badge */}
-                        <div style={{
+                        <div className="level-badge" style={{
                             position: 'absolute',
                             bottom: '2px',
                             right: '2px',

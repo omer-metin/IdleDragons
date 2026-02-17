@@ -29,7 +29,7 @@ const HelpPanel = () => {
             <div
                 className="glass-panel anim-scale-in"
                 style={{
-                    width: '600px',
+                    width: 'min(600px, 92vw)',
                     maxHeight: '80vh',
                     overflowY: 'auto',
                     padding: '2rem',

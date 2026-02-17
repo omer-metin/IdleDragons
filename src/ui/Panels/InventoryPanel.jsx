@@ -35,7 +35,7 @@ const InventoryPanel = () => {
             position: 'absolute',
             bottom: '1rem',
             right: '1rem',
-            width: '280px',
+            width: 'min(280px, 45vw)',
             padding: '1rem',
             borderRadius: 'var(--radius-lg)',
             color: 'var(--text-main)',

@@ -321,3 +321,119 @@ input[type="range"]::-webkit-slider-runnable-track {
 .anim-slide-right {
   animation: slideRight var(--transition-normal) ease-out forwards;
 }
+
+/* ==============================
+   RESPONSIVE DESIGN
+   ============================== */
+
+/* Responsive Typography */
+html {
+  font-size: clamp(14px, 1.6vw, 16px);
+}
+
+/* Touch-friendly minimum sizes */
+@media (pointer: coarse) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    height: 24px;
+    width: 24px;
+    margin-top: -9px;
+  }
+}
+
+/* Tablet — 768px and below */
+@media (max-width: 768px) {
+  /* Reduce panel padding */
+  .glass-panel {
+    padding: 0.8rem;
+  }
+
+  /* HUD: compact resources & controls */
+  .hud-resources {
+    min-width: auto !important;
+    padding: 0.4rem 0.6rem !important;
+    gap: 0.3rem !important;
+  }
+
+  .hud-resources .font-display {
+    font-size: 0.9rem !important;
+  }
+
+  .hud-zone {
+    padding: 0.4rem 1rem !important;
+  }
+
+  .hud-zone .font-display {
+    font-size: 1.1rem !important;
+  }
+
+  /* PartySidebar: smaller portraits */
+  .party-portrait {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .party-portrait .portrait-icon {
+    font-size: 20px !important;
+  }
+}
+
+/* Phone — 480px and below */
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+
+  /* More aggressive panel padding reduction */
+  .glass-panel {
+    padding: 0.6rem;
+  }
+
+  /* HUD: stack Gold/XP vertically */
+  .hud-resources {
+    flex-direction: column !important;
+    gap: 0.15rem !important;
+  }
+
+  .hud-resources .font-display {
+    font-size: 0.8rem !important;
+  }
+
+  .hud-zone .font-display {
+    font-size: 1rem !important;
+  }
+
+  /* HUD controls: smaller buttons */
+  .hud-controls button {
+    padding: 0.4rem 0.8rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* PartySidebar: even smaller, bottom-docked */
+  .party-sidebar {
+    top: auto !important;
+    bottom: 0.5rem !important;
+    right: 0.5rem !important;
+    transform: none !important;
+    flex-direction: row !important;
+    gap: 6px !important;
+  }
+
+  .party-portrait {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .party-portrait .portrait-icon {
+    font-size: 16px !important;
+  }
+
+  .party-portrait .level-badge {
+    font-size: 8px !important;
+    padding: 0px 2px !important;
+  }
+}
