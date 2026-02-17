@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import usePartyStore from '../../store/usePartyStore';
 import AudioManager from '../../audio/AudioManager';
+import ParticleSystem from './ParticleSystem';
 
 class CombatSystem {
     constructor() {
@@ -118,72 +119,12 @@ class CombatSystem {
     }
 
     showHitEffect(target) {
-        if (!this.scene) return;
-
-        for (let i = 0; i < 6; i++) {
-            const p = new PIXI.Graphics();
-            const color = 0xf39c12;
-            p.beginFill(color);
-            p.drawRect(-2, -2, 4, 4);
-            p.endFill();
-
-            p.x = target.x;
-            p.y = target.y - 20;
-
-            this.scene.vfxContainer.addChild(p);
-
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 2 + Math.random() * 3;
-            const vx = Math.cos(angle) * speed;
-            const vy = Math.sin(angle) * speed;
-
-            let pElapsed = 0;
-            const pTick = (delta) => {
-                pElapsed += delta;
-                p.x += vx * delta;
-                p.y += vy * delta;
-                p.alpha = 1 - (pElapsed / 30);
-
-                if (pElapsed >= 30) {
-                    this.scene.app.ticker.remove(pTick);
-                    this.scene.vfxContainer.removeChild(p);
-                    p.destroy();
-                }
-            };
-            this.scene.app.ticker.add(pTick);
-        }
+        ParticleSystem.emitHit(target.x, target.y - 20);
     }
 
     showDeathEffect(target) {
-        if (!this.scene) return;
-
-        // Explosion of particles
-        for (let i = 0; i < 15; i++) {
-            const p = new PIXI.Graphics();
-            p.beginFill(target.isBoss ? 0xf1c40f : 0x8e44ad);
-            p.drawCircle(0, 0, 3 + Math.random() * 3);
-            p.endFill();
-            p.x = target.x;
-            p.y = target.y - 20;
-            this.scene.vfxContainer.addChild(p);
-
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 2 + Math.random() * 4;
-            const vx = Math.cos(angle) * speed;
-            const vy = Math.sin(angle) * speed;
-
-            let alpha = 1.0;
-            const tick = (delta) => {
-                p.x += vx * delta;
-                p.y += vy * delta;
-                p.alpha -= 0.03 * delta;
-                if (p.alpha <= 0) {
-                    this.scene.app.ticker.remove(tick);
-                    p.destroy();
-                }
-            };
-            this.scene.app.ticker.add(tick);
-        }
+        const color = target.isBoss ? 0xf1c40f : 0x8e44ad;
+        ParticleSystem.emitExplosion(target.x, target.y - 20, color);
     }
 
     // Find lowest HP hero (for Cleric healing)
@@ -214,6 +155,35 @@ class CombatSystem {
         }
 
         return lowestTarget;
+    }
+
+    // Find lowest HP enemy (for Healer enemies)
+    getLowestHpEnemy(healer) {
+        if (!this.scene) return null;
+        let lowestTarget = null;
+        let lowestRatio = 1;
+
+        for (const enemy of this.scene.enemyMap.values()) {
+            if (enemy.hp <= 0) continue;
+            if (enemy.id === healer.id) continue;
+
+            const ratio = enemy.hp / enemy.maxHp;
+            if (ratio < lowestRatio) {
+                lowestRatio = ratio;
+                lowestTarget = enemy;
+            }
+        }
+
+        // Self-heal
+        if (!lowestTarget) {
+            if (healer.hp < healer.maxHp) return healer;
+        }
+
+        return lowestTarget;
+    }
+
+    healEnemy(healer, target, amount) {
+        target.receiveHeal(amount);
     }
 
     showHealText(target, amount) {

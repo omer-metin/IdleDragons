@@ -21,7 +21,7 @@ const PartyPanel = () => {
             position: 'absolute',
             bottom: '1rem',
             left: '1rem',
-            width: '340px',
+            width: 'min(340px, 90vw)',
             padding: '1.25rem',
             borderRadius: 'var(--radius-lg)',
             color: 'var(--text-main)',

@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import GameApp from '../../game/GameApp';
 
-const CanvasContainer = () => {
+const CanvasContainer = ({ onInitComplete }) => {
     const containerRef = useRef(null);
 
     useEffect(() => {
         if (containerRef.current) {
-            GameApp.init(containerRef.current);
+            GameApp.init(containerRef.current).then(() => {
+                if (onInitComplete) onInitComplete();
+            });
         }
 
         return () => {

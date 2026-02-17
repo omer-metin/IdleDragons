@@ -93,7 +93,7 @@ const useGameStore = create((set, get) => ({
         wave: 1,
         enemiesKilledThisWave: 0,
         totalKills: 0,
-        gameState: 'MENU',
+        gameState: 'LOBBY',
         isRunning: false,
         activePanel: null
     }),

@@ -1,5 +1,7 @@
 import * as PIXI from 'pixi.js';
 import CombatSystem from '../systems/CombatSystem';
+import PixelArtGenerator from '../utils/PixelArtGenerator';
+import { EnemySprites, EnemyPalettes } from '../assets/PixelArtAssets';
 
 export class Enemy extends PIXI.Container {
     constructor(data) {
@@ -18,6 +20,24 @@ export class Enemy extends PIXI.Container {
 
         this.attackCooldown = 0;
         this.attackSpeed = this.isBoss ? 120 : 90; // Boss attacks slower but harder
+        this.type = data.type || 'melee'; // melee, ranged, healer
+        this.healCooldown = 0;
+        this.healInterval = 180; // 3 sec
+
+        // Stats adjustments based on type
+        if (this.type === 'ranged') {
+            this.hp = Math.floor(this.hp * 0.7);
+            this.atk = Math.floor(this.atk * 1.2);
+            this.range = 250;
+        } else if (this.type === 'healer') {
+            this.hp = Math.floor(this.hp * 0.8);
+            this.atk = Math.floor(this.atk * 0.6); // Weak attack
+            this.range = 220; // Stay back
+        } else {
+            // Melee
+            this.range = 40;
+        }
+        // No stopRange — enemies always walk toward heroes, attacking when in range
 
         this.goldReward = data.goldReward || 5;
         this.xpReward = data.xpReward || 3;
@@ -32,6 +52,13 @@ export class Enemy extends PIXI.Container {
         this.hitArea = new PIXI.Rectangle(-size / 2, -size, size, size);
 
         this.setupVisuals();
+    }
+
+    receiveHeal(amount) {
+        if (this.destroyed || this.hp <= 0) return;
+        this.hp = Math.min(this.maxHp, this.hp + amount);
+        this.updateHpBar();
+        // Heal VFX? handled by CombatSystem usually
     }
 
     getZoneColor() {
@@ -53,96 +80,125 @@ export class Enemy extends PIXI.Container {
 
         // Shadow (Common)
         const shadow = new PIXI.Graphics();
-        shadow.beginFill(0x000000, 0.4);
-        shadow.drawEllipse(0, 0, 15 * scale, 8 * scale);
-        shadow.endFill();
-        this.addChild(shadow);
+        const baseScale = this.isBoss ? 2.0 : 1.0; // This was for geometric shapes, now used for HP bar positioning
 
         // Main Body Container (for bobbing)
         this.bodyContainer = new PIXI.Container();
         this.addChild(this.bodyContainer);
 
-        // Body Shape (Pentagon/Hexagon)
-        this.bodyGfx = new PIXI.Graphics();
-        this.bodyGfx.beginFill(colors.body, 0.9);
-        this.bodyGfx.lineStyle(2, colors.light, 0.5);
+        // Body Shape based on Type
+        // Try Pixel Art first
+        const spriteKey = this.data.spriteKey || 'Goblin'; // default
+        const spriteData = EnemySprites[spriteKey];
+        const palette = EnemyPalettes[spriteKey];
 
-        const w = 18 * scale;
-        const h = 40 * scale;
+        if (spriteData && palette) {
+            const texture = PixelArtGenerator.getTexture(spriteKey, spriteData, palette);
+            const sprite = new PIXI.Sprite(texture);
 
-        // Irregular Polygon
-        const path = [
-            -w, -h * 0.6,   // Top Left
-            0, -h,        // Top Tip
-            w, -h * 0.6,    // Top Right
-            w * 0.8, -h * 0.1, // Bot Right
-            0, 0,         // Bot Tip
-            -w * 0.8, -h * 0.1 // Bot Left
-        ];
-        this.bodyGfx.drawPolygon(path);
-        this.bodyGfx.endFill();
-        this.bodyContainer.addChild(this.bodyGfx);
+            // Scale
+            const scale = this.isBoss ? 5 : 3;
+            sprite.scale.set(scale);
+            sprite.anchor.set(0.5, 1);
+            this.bodyContainer.addChild(sprite);
+            this.bodyGfx = sprite; // Assign sprite to bodyGfx for tinting/shaking
 
-        // Tendrils (Visual only)
-        // Draw some lines extending down
-        /*
-        const tendrils = new PIXI.Graphics();
-        tendrils.lineStyle(2, colors.body, 0.8);
-        tendrils.moveTo(-5*scale, 0); tendrils.lineTo(-8*scale, 10*scale);
-        tendrils.moveTo(5*scale, 0); tendrils.lineTo(8*scale, 10*scale);
-        this.bodyContainer.addChildAt(tendrils, 0);
-        */
+            // Add Shadow
+            const shadow = new PIXI.Graphics();
+            shadow.beginFill(0x000000, 0.4);
+            shadow.drawEllipse(0, 0, 15 * baseScale, 8 * baseScale); // Use baseScale for shadow size
+            shadow.endFill();
+            this.addChildAt(shadow, 0);
 
-        // Eyes
-        this.eyesContainer = new PIXI.Container();
-        this.bodyContainer.addChild(this.eyesContainer);
+            // Add hit area
+            this.hitArea = new PIXI.Rectangle(-30, -80, 60, 80); // Adjusted for sprite size
 
-        const eyeColor = this.isBoss ? 0xff0000 : 0xe74c3c;
-        const eyeY = -h * 0.55;
-        const eyeX = w * 0.4;
-        const eyeSize = 3 * scale;
+            // Type indicators (since we reuse same sprite for ranged/healer for now)
+            if (this.type === 'healer') {
+                const cross = new PIXI.Graphics();
+                cross.beginFill(0x2ecc71);
+                cross.drawRect(-5, -scale * 12 - 20, 10, 30);
+                cross.drawRect(-15, -scale * 12 - 10, 30, 10);
+                cross.endFill();
+                cross.scale.set(0.5);
+                this.bodyContainer.addChild(cross);
+            }
 
-        const leftEye = new PIXI.Graphics();
-        leftEye.beginFill(eyeColor);
-        leftEye.drawCircle(-eyeX, eyeY, eyeSize);
-        leftEye.endFill();
+            // Setup Eyes Container (if needed for blinking, but sprites have eyes baked in usually)
+            // If we want blinking eyes on top of sprites?
+            // The sprites defined in Assets have 'E' for eyes. We could overlay blinking if we want.
+            // For now, let's skip complex eye blinking on sprites to keep it simple and clean.
+            this.eyesContainer = new PIXI.Container(); // Still create for update loop, but keep empty
+            this.bodyContainer.addChild(this.eyesContainer);
 
-        const rightEye = new PIXI.Graphics();
-        rightEye.beginFill(eyeColor);
-        rightEye.drawCircle(eyeX, eyeY, eyeSize);
-        rightEye.endFill();
+        } else {
+            // Fallback Geometric
+            this.bodyGfx = new PIXI.Graphics();
+            this.bodyGfx.beginFill(colors.body, 0.9);
+            this.bodyGfx.lineStyle(2, colors.light, 0.5);
+            // ... existing geometric code ...
+            // Since I am replacing the block, I'll just put a simple fallback
+            this.bodyGfx.drawCircle(0, -20, 20 * baseScale); // Use baseScale for fallback
+            this.bodyGfx.endFill();
+            this.bodyContainer.addChild(this.bodyGfx);
 
-        this.eyesContainer.addChild(leftEye);
-        this.eyesContainer.addChild(rightEye);
+            // Old geometric shadow (if no sprite)
+            const shadow = new PIXI.Graphics();
+            shadow.beginFill(0x000000, 0.4);
+            shadow.drawEllipse(0, 0, 15 * baseScale, 8 * baseScale);
+            shadow.endFill();
+            this.addChildAt(shadow, 0);
 
-        if (this.isBoss || this.zone >= 10) {
-            // Third Eye
-            const midEye = new PIXI.Graphics();
-            midEye.beginFill(eyeColor);
-            midEye.drawCircle(0, eyeY - 6 * scale, eyeSize * 1.2);
-            midEye.endFill();
-            this.eyesContainer.addChild(midEye);
+            // Eyes (for geometric fallback)
+            this.eyesContainer = new PIXI.Container();
+            this.bodyContainer.addChild(this.eyesContainer);
+
+            const eyeColor = this.isBoss ? 0xff0000 : (this.type === 'healer' ? 0x2ecc71 : 0xe74c3c);
+            const eyeY = -20 * baseScale * 0.55; // Adjusted for fallback circle
+            const eyeX = 20 * baseScale * 0.4;
+            const eyeSize = 3 * baseScale;
+
+            const leftEye = new PIXI.Graphics();
+            leftEye.beginFill(eyeColor);
+            leftEye.drawCircle(-eyeX, eyeY, eyeSize);
+            leftEye.endFill();
+
+            const rightEye = new PIXI.Graphics();
+            rightEye.beginFill(eyeColor);
+            rightEye.drawCircle(eyeX, eyeY, eyeSize);
+            rightEye.endFill();
+
+            this.eyesContainer.addChild(leftEye);
+            this.eyesContainer.addChild(rightEye);
+
+            if (this.isBoss || this.zone >= 10) {
+                // Third Eye
+                const midEye = new PIXI.Graphics();
+                midEye.beginFill(eyeColor);
+                midEye.drawCircle(0, eyeY - 6 * baseScale, eyeSize * 1.2);
+                midEye.endFill();
+                this.eyesContainer.addChild(midEye);
+            }
         }
+
+        // Calculate body height for positioning (used by boss aura, name tag, HP bar)
+        const h = this.bodyGfx ? this.bodyGfx.height : (40 * baseScale);
 
         // Boss Extras
         if (this.isBoss) {
             // Crown
             const crown = new PIXI.Graphics();
             crown.beginFill(0xf1c40f);
-            crown.drawPolygon([
-                -w, -h + 5,
-                -w / 2, -h - 10,
-                0, -h + 2,
-                w / 2, -h - 10,
-                w, -h + 5
-            ]);
+            crown.drawPolygon([-10, -50, -5, -60, 0, -50, 5, -60, 10, -50]);
             crown.endFill();
+            crown.scale.set(baseScale); // Use baseScale for crown
+            crown.y = -20 * baseScale; // Adjust position relative to body
             this.bodyContainer.addChild(crown);
 
             // Aura
             this.aura = new PIXI.Graphics();
             this.aura.lineStyle(2, 0xe74c3c, 0.4);
-            const radius = w * 2.5;
+            const radius = (this.bodyGfx.width / 2 || 20 * baseScale) * 1.5; // Use bodyGfx width or fallback
             // Dashed circle manual
             for (let i = 0; i < 8; i++) {
                 const start = (i / 8) * Math.PI * 2;
@@ -253,25 +309,63 @@ export class Enemy extends PIXI.Container {
         }
 
         // Logic (Movement / Attack)
+        // Logic (Movement / Attack)
+        if (this.type === 'healer') {
+            this.healCooldown -= delta;
+            // Check for heal targets
+            const ally = CombatSystem.getLowestHpEnemy(this);
+            if (ally && (ally.hp / ally.maxHp) < 0.7 && this.healCooldown <= 0) {
+                // Try to Heal
+                const dist = CombatSystem.getDistance(this, ally);
+                if (dist <= 100) {
+                    this.healCooldown = this.healInterval;
+                    // Heal logic
+                    const amount = Math.floor(this.atk * 1.5);
+                    CombatSystem.healEnemy(this, ally, amount);
+                    CombatSystem.showHealText(ally, amount);
+                    // Fall through to attack/movement below
+                } else {
+                    // Move to ally
+                    const angle = Math.atan2(ally.y - this.y, ally.x - this.x);
+                    const speed = (this.isBoss ? 0.5 : 0.8) * 1.2; // Move fast to heal
+                    this.x += Math.cos(angle) * speed * delta;
+                    this.y += Math.sin(angle) * speed * delta;
+                    // Fall through to attack check below
+                }
+            }
+        }
+
         const target = CombatSystem.getNearestHero(this);
-        if (target) {
+        if (!target) {
+            // No hero target (all dead/sleeping) — drift toward center to avoid permanent freeze
+            const distToCenter = Math.sqrt(this.x * this.x + this.y * this.y);
+            if (distToCenter > 50) {
+                const angle = Math.atan2(-this.y, -this.x);
+                const speed = this.isBoss ? 0.3 : 0.5;
+                this.x += Math.cos(angle) * speed * delta;
+                this.y += Math.sin(angle) * speed * delta;
+            }
+        } else {
             const dist = CombatSystem.getDistance(this, target);
-            // Move range: 30
-            if (dist > 30) {
+            const attackRange = this.range || 50;
+
+            // Always move toward the hero — no stop distance
+            if (dist > 5) {
                 const angle = Math.atan2(target.y - this.y, target.x - this.x);
                 const speed = this.isBoss ? 0.5 : 0.8;
                 this.x += Math.cos(angle) * speed * delta;
                 this.y += Math.sin(angle) * speed * delta;
             }
 
-            // Attack range: 50
-            if (dist <= 50) {
+            // Attack when in range (while still walking)
+            if (dist <= attackRange) {
                 if (this.attackCooldown <= 0) {
                     this.attackCooldown = this.attackSpeed;
 
-                    // Lunge animation
+                    // Attack Animation
                     const angle = Math.atan2(target.y - this.y, target.x - this.x);
-                    const lungeDist = 10;
+                    const lungeDist = this.type === 'melee' ? 10 : 5;
+
                     this.bodyContainer.x += Math.cos(angle) * lungeDist;
                     this.bodyContainer.y += Math.sin(angle) * lungeDist;
                     setTimeout(() => {
@@ -281,7 +375,11 @@ export class Enemy extends PIXI.Container {
                         }
                     }, 150);
 
-                    CombatSystem.dealDamageToHero(this, target, this.atk);
+                    if (this.type === 'ranged' || this.type === 'healer') {
+                        CombatSystem.dealDamageToHero(this, target, this.atk);
+                    } else {
+                        CombatSystem.dealDamageToHero(this, target, this.atk);
+                    }
                 }
             }
         }

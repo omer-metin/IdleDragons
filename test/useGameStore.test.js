@@ -8,14 +8,23 @@ describe('useGameStore', () => {
 
     // --- State Transitions ---
     describe('state transitions', () => {
-        it('startGame sets RUNNING and isRunning true', () => {
+        it('startGame sets LOBBY and isRunning false (MENU -> LOBBY transition)', () => {
+            useGameStore.getState().enterMenu(); // Ensure we start from MENU
             useGameStore.getState().startGame();
+            expect(useGameStore.getState().gameState).toBe('LOBBY');
+            expect(useGameStore.getState().isRunning).toBe(false);
+        });
+
+        it('startAdventure sets RUNNING and isRunning true (LOBBY -> RUNNING transition)', () => {
+            useGameStore.getState().startGame(); // Go to LOBBY first
+            useGameStore.getState().startAdventure();
             expect(useGameStore.getState().gameState).toBe('RUNNING');
             expect(useGameStore.getState().isRunning).toBe(true);
         });
 
         it('endGame sets GAMEOVER and isRunning false', () => {
             useGameStore.getState().startGame();
+            useGameStore.getState().startAdventure();
             useGameStore.getState().endGame();
             expect(useGameStore.getState().gameState).toBe('GAMEOVER');
             expect(useGameStore.getState().isRunning).toBe(false);
@@ -23,6 +32,7 @@ describe('useGameStore', () => {
 
         it('togglePause from RUNNING sets PAUSED', () => {
             useGameStore.getState().startGame();
+            useGameStore.getState().startAdventure();
             useGameStore.getState().togglePause();
             expect(useGameStore.getState().gameState).toBe('PAUSED');
             expect(useGameStore.getState().isRunning).toBe(false);
@@ -30,6 +40,7 @@ describe('useGameStore', () => {
 
         it('togglePause from PAUSED sets RUNNING', () => {
             useGameStore.getState().startGame();
+            useGameStore.getState().startAdventure();
             useGameStore.getState().togglePause();
             useGameStore.getState().togglePause();
             expect(useGameStore.getState().gameState).toBe('RUNNING');
@@ -37,6 +48,8 @@ describe('useGameStore', () => {
         });
 
         it('togglePause from LOBBY does nothing', () => {
+            // After resetGame, state is LOBBY
+            expect(useGameStore.getState().gameState).toBe('LOBBY');
             useGameStore.getState().togglePause();
             expect(useGameStore.getState().gameState).toBe('LOBBY');
         });
@@ -51,7 +64,8 @@ describe('useGameStore', () => {
     // --- Distance & Score ---
     describe('distance and score', () => {
         it('incrementDistance only works when RUNNING', () => {
-            useGameStore.getState().startGame();
+            useGameStore.getState().startGame(); // MENU -> LOBBY
+            useGameStore.getState().startAdventure(); // LOBBY -> RUNNING
             useGameStore.getState().incrementDistance(10);
             expect(useGameStore.getState().distance).toBe(10);
         });
@@ -63,6 +77,7 @@ describe('useGameStore', () => {
 
         it('score is zone*100 + wave*10', () => {
             useGameStore.getState().startGame();
+            useGameStore.getState().startAdventure();
             useGameStore.getState().incrementDistance(1);
             expect(useGameStore.getState().score).toBe(1 * 100 + 1 * 10); // zone=1, wave=1
         });
@@ -117,6 +132,7 @@ describe('useGameStore', () => {
     describe('reset', () => {
         it('resetGame resets all state to defaults', () => {
             useGameStore.getState().startGame();
+            useGameStore.getState().startAdventure();
             useGameStore.getState().addKill();
             useGameStore.setState({ zone: 5, wave: 7 });
             useGameStore.getState().resetGame();
@@ -164,12 +180,13 @@ describe('useGameStore', () => {
         it('calling startGame twice does not corrupt state', () => {
             useGameStore.getState().startGame();
             useGameStore.getState().startGame();
-            expect(useGameStore.getState().gameState).toBe('RUNNING');
-            expect(useGameStore.getState().isRunning).toBe(true);
+            expect(useGameStore.getState().gameState).toBe('LOBBY');
+            expect(useGameStore.getState().isRunning).toBe(false);
         });
 
         it('resetGame during RUNNING transitions to LOBBY', () => {
             useGameStore.getState().startGame();
+            useGameStore.getState().startAdventure();
             useGameStore.getState().resetGame();
             expect(useGameStore.getState().gameState).toBe('LOBBY');
             expect(useGameStore.getState().isRunning).toBe(false);

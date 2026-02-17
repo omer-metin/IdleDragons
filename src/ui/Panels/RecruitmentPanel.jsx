@@ -6,6 +6,8 @@ import useMetaStore from '../../store/useMetaStore';
 import { UserPlus, RefreshCw, X, Sword, Shield, Heart, Crosshair, Zap } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
+import useToastStore from '../../store/useToastStore';
+import CrazyGamesSDK from '../../platform/CrazyGames';
 
 const RecruitmentPanel = () => {
     const { activePanel, closePanel, selectedGridSlot, gameState } = useGameStore();
@@ -171,6 +173,31 @@ const RecruitmentPanel = () => {
                     }}
                 >
                     <RefreshCw size={20} /> Reroll Names ({rerollCost} Souls)
+                </GameButton>
+
+                <GameButton
+                    onClick={() => {
+                        CrazyGamesSDK.showRewardedAd(() => {
+                            useMetaStore.getState().addSouls(25);
+                            AudioManager.playSFX('ui_recruit'); // sound
+                            useToastStore.getState().addToast({
+                                type: 'resource',
+                                message: 'Received 25 Souls!',
+                                icon: '💎',
+                                color: '#9b59b6'
+                            });
+                        });
+                    }}
+                    style={{
+                        marginLeft: '1rem',
+                        padding: '0.8rem 1.5rem',
+                        background: '#8e44ad',
+                        border: 'none',
+                        fontSize: '1.1rem',
+                        fontWeight: 'bold'
+                    }}
+                >
+                    📺 Get 25 Souls
                 </GameButton>
             </div>
         </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import AudioManager from '../../audio/AudioManager';
 
-const GameButton = ({ onClick, onMouseEnter, children, className, disabled, ...props }) => {
+const GameButton = ({ onClick, onMouseEnter, children, className, disabled, style: propStyle, ...props }) => {
     const handleClick = (e) => {
         if (!disabled) {
             AudioManager.playSFX('button_click');
@@ -35,7 +35,7 @@ const GameButton = ({ onClick, onMouseEnter, children, className, disabled, ...p
                 justifyContent: 'center',
                 gap: '8px',
                 fontFamily: 'inherit',
-                ...props.style
+                ...propStyle
             }}
             {...props}
         >

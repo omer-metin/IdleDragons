@@ -28,7 +28,7 @@ const LobbyPanel = () => {
         if (hasParty) {
             AudioManager.playSFX('ui_start_game');
             AudioManager.startBGM('adventure');
-            startGame();
+            startAdventure();
         }
     };
 

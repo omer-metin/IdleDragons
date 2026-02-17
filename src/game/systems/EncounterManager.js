@@ -7,6 +7,7 @@ import useLootStore from '../../store/useLootStore';
 import AudioManager from '../../audio/AudioManager';
 import useToastStore from '../../store/useToastStore';
 import CombatSystem from './CombatSystem';
+import ParticleSystem from './ParticleSystem';
 
 class EncounterManager {
     constructor() {
@@ -142,6 +143,7 @@ class EncounterManager {
         // Audio & Visuals
         AudioManager.playSFX(enemy.isBoss ? 'boss_death' : 'enemy_death');
         CombatSystem.showDeathEffect(enemy);
+        ParticleSystem.emitGold(enemy.x, enemy.y - 20);
         useToastStore.getState().addGoldToast(goldAmount);
         useToastStore.getState().addXpToast(xpAmount);
 
@@ -219,6 +221,18 @@ class EncounterManager {
         const stats = this.getEnemyStats(zone);
         const name = this.getEnemyName(zone);
 
+        let type = 'melee';
+        const rand = Math.random();
+
+        if (zone >= 5) {
+            // Zone 5+: Melee 60%, Ranged 30%, Healer 10%
+            if (rand < 0.1) type = 'healer';
+            else if (rand < 0.4) type = 'ranged';
+        } else if (zone >= 3) {
+            // Zone 3+: Melee 70%, Ranged 30%
+            if (rand < 0.3) type = 'ranged';
+        }
+
         const enemy = new Enemy({
             id: `${name.toLowerCase()}_${Math.random().toString(36).substr(2, 9)}`,
             hp: stats.hp,
@@ -226,8 +240,10 @@ class EncounterManager {
             def: stats.def,
             goldReward: stats.goldReward,
             xpReward: stats.xpReward,
-            name: name,
-            zone: zone
+            name: `${type === 'melee' ? '' : type + ' '}${name}`, // e.g. "ranged Goblin"
+            spriteKey: name, // The base name (Goblin, Orc...)
+            zone: zone,
+            type: type
         });
 
         // Spawn at random edge (User requested random directions)

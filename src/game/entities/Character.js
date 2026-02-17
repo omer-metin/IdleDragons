@@ -1,5 +1,7 @@
 import * as PIXI from 'pixi.js';
 import CombatSystem from '../systems/CombatSystem';
+import PixelArtGenerator from '../utils/PixelArtGenerator';
+import { HeroSprites, HeroPalettes } from '../assets/PixelArtAssets';
 import useGameStore from '../../store/useGameStore';
 import usePartyStore from '../../store/usePartyStore';
 
@@ -21,7 +23,8 @@ export class Character extends PIXI.Container {
         this.def = this.baseDef + equipStats.def;
 
         this.attackCooldown = 0;
-        this.attackSpeed = 60; // Frames per attack (~1 sec)
+        // Convert seconds to frames (assuming 60fps)
+        this.attackSpeed = (data.attackSpeed || 1.0) * 60;
 
         // Death & sleep
         this.isDead = false;
@@ -67,121 +70,27 @@ export class Character extends PIXI.Container {
         const shadow = new PIXI.Graphics();
         shadow.beginFill(0x000000, 0.3);
         shadow.drawEllipse(0, 0, 20, 10);
-        shadow.endFill();
-        this.addChild(shadow);
-
         // Visual Container for body bouncing
         this.body = new PIXI.Container();
         this.addChild(this.body);
 
-        const g = new PIXI.Graphics();
-        this.body.addChild(g);
+        // Pixel Art Visuals
+        const spriteData = HeroSprites[this.data.class];
+        const palette = HeroPalettes[this.data.class];
 
-        // Class-specific visuals
-        switch (this.data.class) {
-            case 'Warrior':
-                // Trapezoid Body
-                g.beginFill(0x9b2c2c); // Deep crimson
-                g.lineStyle(2, 0x000000, 0.5);
-                g.moveTo(-20, -60);
-                g.lineTo(20, -60);
-                g.lineTo(14, -10);
-                g.lineTo(-14, -10);
-                g.closePath();
-                g.endFill();
-
-                // Helmet
-                g.beginFill(0x718093);
-                g.drawPolygon([-15, -60, 0, -75, 15, -60]);
-                g.endFill();
-
-                // Shield Icon
-                g.lineStyle(2, 0xf1c40f);
-                g.beginFill(0x2c3e50);
-                g.drawRect(-26, -45, 10, 25);
-                g.endFill();
-
-                // Aura
-                this.aura = new PIXI.Graphics();
-                this.aura.beginFill(0xe74c3c, 0.2);
-                this.aura.drawCircle(0, -35, 35);
-                this.aura.endFill();
-                this.body.addChildAt(this.aura, 0);
-                break;
-
-            case 'Mage':
-                // Robe Body
-                g.beginFill(0x2c3e50); // Dark Blue
-                g.moveTo(0, -80);
-                g.lineTo(16, -10);
-                g.lineTo(-16, -10);
-                g.closePath();
-                g.endFill();
-
-                // Hat
-                g.beginFill(0x8e44ad);
-                g.moveTo(-20, -80);
-                g.lineTo(20, -80);
-                g.lineTo(0, -105);
-                g.closePath();
-                g.endFill();
-
-                // Staff
-                g.lineStyle(2, 0x95a5a6);
-                g.moveTo(18, -10);
-                g.lineTo(18, -90);
-                g.lineStyle(0);
-                g.beginFill(0x9b59b6);
-                g.drawCircle(18, -90, 5);
-                g.endFill();
-
-                // Sparkles (handled in update)
-                break;
-
-            case 'Archer':
-                // Tunic Body
-                g.beginFill(0x27ae60);
-                g.drawRoundedRect(-18, -70, 36, 60, 8);
-                g.endFill();
-
-                // Hood
-                g.beginFill(0x1e8449);
-                g.drawPolygon([-18, -70, 0, -85, 18, -70]);
-                g.endFill();
-
-                // Bow
-                g.lineStyle(3, 0xd35400);
-                g.moveTo(15, -65);
-                g.bezierCurveTo(35, -55, 35, -25, 15, -15);
-                g.lineStyle(1, 0xffffff, 0.5);
-                g.moveTo(15, -65);
-                g.lineTo(15, -15);
-                break;
-
-            case 'Cleric':
-                // Robe
-                g.beginFill(0xf39c12);
-                g.drawEllipse(0, -40, 20, 35);
-                g.endFill();
-
-                // Halo
-                g.lineStyle(2, 0xf1c40f);
-                g.drawEllipse(0, -85, 12, 4);
-
-                // Cross
-                g.lineStyle(0);
-                g.beginFill(0xffffff);
-                g.drawRect(-4, -50, 8, 25);
-                g.drawRect(-10, -45, 20, 8);
-                g.endFill();
-
-                // Light Glow
-                this.aura = new PIXI.Graphics();
-                this.aura.beginFill(0xf1c40f, 0.15);
-                this.aura.drawCircle(0, -40, 40);
-                this.aura.endFill();
-                this.body.addChildAt(this.aura, 0);
-                break;
+        if (spriteData && palette) {
+            const texture = PixelArtGenerator.getTexture(this.data.class, spriteData, palette);
+            const sprite = new PIXI.Sprite(texture);
+            sprite.scale.set(4); // 12px -> 48px
+            sprite.anchor.set(0.5, 1);
+            this.body.addChild(sprite);
+        } else {
+            // Fallback (Red box)
+            const g = new PIXI.Graphics();
+            g.beginFill(0xFF0000);
+            g.drawRect(-20, -60, 40, 60);
+            g.endFill();
+            this.body.addChild(g);
         }
 
         // Inner Glow / Pulse (subtle for all)
@@ -266,7 +175,9 @@ export class Character extends PIXI.Container {
             case 'Mage': return 0x0000FF;
             case 'Archer': return 0x00FF00;
             case 'Cleric': return 0xFFFF00;
-            default: return 0xCCCCC;
+            case 'Rogue': return 0x9b59b6;
+            case 'Paladin': return 0xecf0f1;
+            default: return 0xCCCCCC;
         }
     }
 

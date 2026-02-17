@@ -101,3 +101,5 @@ dist
 
 # Dynamically generated artifacts
 .agent/
+
+ROADMAP.md

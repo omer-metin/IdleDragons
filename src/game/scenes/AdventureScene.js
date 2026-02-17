@@ -4,6 +4,7 @@ import useGameStore from '../../store/useGameStore';
 import CombatSystem from '../systems/CombatSystem';
 import { toScreen, toGrid, TILE_WIDTH, TILE_HEIGHT } from '../utils/Isometric';
 import { Character } from '../entities/Character';
+import ParticleSystem from '../systems/ParticleSystem';
 
 export class AdventureScene extends PIXI.Container {
     constructor(app) {
@@ -28,6 +29,9 @@ export class AdventureScene extends PIXI.Container {
         this.vfxContainer = new PIXI.Container();
         this.vfxContainer.zIndex = 9999;
         this.isoContainer.addChild(this.vfxContainer);
+
+        // Bind Particle System
+        ParticleSystem.bindContainer(this.vfxContainer);
 
         // Highlight
         this.selectedTileHighlight = new PIXI.Graphics();
@@ -209,6 +213,7 @@ export class AdventureScene extends PIXI.Container {
         this.checkPartyStatus(delta);
         this.updateSelectedTileHighlight();
         this.updateAmbientParticles(delta);
+        ParticleSystem.update(delta);
 
         // Entity Updates
         for (const char of this.characterMap.values()) char.update(delta);

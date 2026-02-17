@@ -4,6 +4,7 @@ import { AdventureScene } from './scenes/AdventureScene';
 import useGameStore from '../store/useGameStore';
 
 import EncounterManager from './systems/EncounterManager';
+import CrazyGamesSDK from '../platform/CrazyGames';
 
 class GameApp {
     constructor() {
@@ -31,7 +32,6 @@ class GameApp {
 
         // Enable Stage Interactivity
         this.app.stage.eventMode = 'static';
-        this.app.stage.interactive = true;
         this.app.stage.hitArea = this.app.screen;
 
         // Bind Scene to EncounterManager
@@ -56,6 +56,20 @@ class GameApp {
 
         this.app.renderer.on('resize', (w, h) => {
             if (this.scene && this.scene.resize) this.scene.resize(w, h);
+        });
+
+        // CrazyGames SDK Init
+        CrazyGamesSDK.init();
+
+        // Listen for Game State changes for SDK events
+        this.unsubscribeStore = useGameStore.subscribe((state, prevState) => {
+            if (state.gameState !== prevState.gameState) {
+                if (state.gameState === 'RUNNING') {
+                    CrazyGamesSDK.gameplayStart();
+                } else {
+                    CrazyGamesSDK.gameplayStop();
+                }
+            }
         });
     }
 
@@ -86,6 +100,7 @@ class GameApp {
     }
 
     destroy() {
+        if (this.unsubscribeStore) this.unsubscribeStore();
         if (this.app) {
             this.app.destroy(true, { children: true });
             this.app = null;

@@ -51,6 +51,28 @@ const CLASS_DEFINITIONS = {
         canHeal: true,
         color: '#f1c40f',
     },
+    Rogue: {
+        role: 'Duelist',
+        description: 'High Speed and Damage. Very fragile.',
+        baseHp: 75,
+        baseAtk: 24,
+        baseDef: 1,
+        range: 100,
+        attackSpeed: 0.6,
+        canHeal: false,
+        color: '#9b59b6',
+    },
+    Paladin: {
+        role: 'Tank / Healer',
+        description: 'High reduction and minor healing capabilities.',
+        baseHp: 160,
+        baseAtk: 12,
+        baseDef: 8,
+        range: 100,
+        attackSpeed: 1.2,
+        canHeal: true,
+        color: '#ecf0f1',
+    },
 };
 
 const CLASSES = Object.keys(CLASS_DEFINITIONS);
