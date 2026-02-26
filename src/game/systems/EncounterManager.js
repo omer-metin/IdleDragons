@@ -6,6 +6,7 @@ import usePartyStore from '../../store/usePartyStore';
 import useLootStore from '../../store/useLootStore';
 import AudioManager from '../../audio/AudioManager';
 import useToastStore from '../../store/useToastStore';
+import useAchievementStore from '../../store/useAchievementStore';
 import CombatSystem from './CombatSystem';
 import ParticleSystem from './ParticleSystem';
 
@@ -26,10 +27,10 @@ class EncounterManager {
     }
 
     getEnemyStats(zone) {
-        const scaling = Math.pow(1.15, zone - 1);
+        const scaling = Math.pow(1.25, zone - 1);
         return {
-            hp: Math.floor(20 * scaling),
-            atk: Math.floor(5 * scaling),
+            hp: Math.floor(30 * scaling),
+            atk: Math.floor(8 * scaling),
             def: Math.floor(1 * scaling),
             goldReward: Math.floor(5 + zone * 2),
             xpReward: Math.floor(3 + zone * 1.5),
@@ -37,16 +38,36 @@ class EncounterManager {
     }
 
     getEnemyName(zone) {
-        const names = ['Goblin', 'Skeleton', 'Orc', 'Wraith', 'Troll', 'Demon', 'Dragon Whelp'];
-        const index = Math.min(Math.floor((zone - 1) / 3), names.length - 1);
-        return names[index];
+        const ZONE_ENEMIES = [
+            ['Rat', 'Slime', 'Bat'],           // Zone 1
+            ['Goblin', 'Kobold', 'Wolf'],        // Zone 2
+            ['Skeleton', 'Zombie', 'Ghost'],     // Zone 3
+            ['Orc', 'Bandit', 'Spider'],         // Zone 4
+            ['Wraith', 'Shade', 'Phantom'],      // Zone 5
+            ['Troll', 'Ogre', 'Basilisk'],       // Zone 6
+            ['Demon Imp', 'Hellhound', 'Harpy'], // Zone 7
+            ['Fire Elemental', 'Magma Golem', 'Salamander'], // Zone 8
+            ['Shadow Dragon', 'Dark Knight', 'Void Walker'],  // Zone 9
+        ];
+        const PREFIXES = ['', '', '', 'Frenzied ', 'Shadow ', 'Elder ', 'Cursed '];
+
+        const tier = Math.min(zone - 1, ZONE_ENEMIES.length - 1);
+        const enemies = ZONE_ENEMIES[tier];
+        const baseName = enemies[Math.floor(Math.random() * enemies.length)];
+
+        // Higher zones get prefixed variants
+        if (zone > ZONE_ENEMIES.length) {
+            const prefix = PREFIXES[Math.floor(Math.random() * PREFIXES.length)];
+            return prefix + baseName;
+        }
+        return baseName;
     }
 
     getBossStats(zone) {
         const base = this.getEnemyStats(zone);
         return {
-            hp: Math.floor(base.hp * 5),
-            atk: Math.floor(base.atk * 2),
+            hp: Math.floor(base.hp * 8),
+            atk: Math.floor(base.atk * 3),
             def: Math.floor(base.def * 1.5),
             goldReward: Math.floor(base.goldReward * 5),
             xpReward: Math.floor(base.xpReward * 5),
@@ -54,9 +75,19 @@ class EncounterManager {
     }
 
     getBossName(zone) {
-        const bossNames = ['Goblin King', 'Skeleton Lord', 'Orc Warchief', 'Wraith Sovereign', 'Troll Elder', 'Demon Prince', 'Dragon Matriarch'];
-        const index = Math.min(Math.floor((zone - 1) / 3), bossNames.length - 1);
-        return bossNames[index];
+        const ZONE_BOSSES = [
+            'Rat King',            // Zone 1
+            'Goblin Warchief',     // Zone 2
+            'Necromancer',         // Zone 3
+            'Spider Queen',        // Zone 4
+            'Lich Lord',           // Zone 5
+            'Troll Elder',         // Zone 6
+            'Demon Prince',        // Zone 7
+            'Infernal Dragon',     // Zone 8
+            'Ancient Dragon',      // Zone 9
+        ];
+        const index = Math.min(zone - 1, ZONE_BOSSES.length - 1);
+        return zone > ZONE_BOSSES.length ? `Elder ${ZONE_BOSSES[index]}` : ZONE_BOSSES[index];
     }
 
     update(delta) {
@@ -139,6 +170,7 @@ class EncounterManager {
         useResourceStore.getState().addGold(goldAmount);
         useResourceStore.getState().addXp(xpAmount);
         useGameStore.getState().addKill();
+        useAchievementStore.getState().trackGold(goldAmount);
 
         // Audio & Visuals
         AudioManager.playSFX(enemy.isBoss ? 'boss_death' : 'enemy_death');
@@ -166,7 +198,7 @@ class EncounterManager {
                     color: item.rarityColor || '#f1c40f',
                     duration: 4000
                 });
-                AudioManager.playSFX('ui_hover'); // Or a specific loot sound if available
+                AudioManager.playSFX('loot_drop');
             }
         }
     }
@@ -204,6 +236,7 @@ class EncounterManager {
         if (gameState.wave === 1) {
             const zoneBonus = gameState.zone * 50;
             useResourceStore.getState().addGold(zoneBonus);
+            useAchievementStore.getState().trackGold(zoneBonus);
             useToastStore.getState().addToast({
                 type: 'zone',
                 message: `Zone ${gameState.zone} Reached!`,
@@ -211,7 +244,28 @@ class EncounterManager {
                 color: '#8e44ad'
             });
             AudioManager.startBGM('adventure');
+
+            // Check achievements on zone advance
+            this.checkAchievements();
         }
+    }
+
+    /** Build snapshot and check all achievements. */
+    checkAchievements() {
+        const meta = useMetaStore.getState();
+        const achStore = useAchievementStore.getState();
+        const party = usePartyStore.getState();
+        const snapshot = {
+            totalKillsAllTime: meta.totalKillsAllTime + useGameStore.getState().totalKills,
+            highestZone: Math.max(meta.highestZone, useGameStore.getState().zone),
+            generation: meta.generation,
+            totalGoldEarned: achStore.totalGoldEarned,
+            totalItemsFound: achStore.totalItemsFound,
+            legendariesFound: achStore.legendariesFound,
+            totalSoulsEarned: achStore.totalSoulsEarned,
+            partySize: party.members.length,
+        };
+        achStore.checkAll(snapshot);
     }
 
     spawnEnemy() {
@@ -233,15 +287,18 @@ class EncounterManager {
             if (rand < 0.3) type = 'ranged';
         }
 
+        // Strip prefixes for sprite key lookup
+        const spriteKey = name.replace(/^(Frenzied |Shadow |Elder |Cursed )/, '');
+
         const enemy = new Enemy({
-            id: `${name.toLowerCase()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: `${name.toLowerCase().replace(/\s/g, '_')}_${Math.random().toString(36).substr(2, 9)}`,
             hp: stats.hp,
             atk: stats.atk,
             def: stats.def,
             goldReward: stats.goldReward,
             xpReward: stats.xpReward,
-            name: `${type === 'melee' ? '' : type + ' '}${name}`, // e.g. "ranged Goblin"
-            spriteKey: name, // The base name (Goblin, Orc...)
+            name: `${type === 'melee' ? '' : type + ' '}${name}`,
+            spriteKey: spriteKey,
             zone: zone,
             type: type
         });

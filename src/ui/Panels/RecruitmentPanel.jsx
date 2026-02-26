@@ -3,6 +3,7 @@ import useRecruitmentStore from '../../store/useRecruitmentStore';
 import { CLASS_DEFINITIONS } from '../../store/useRecruitmentStore';
 import useGameStore from '../../store/useGameStore';
 import useMetaStore from '../../store/useMetaStore';
+import useResourceStore from '../../store/useResourceStore';
 import useTutorialStore from '../../store/useTutorialStore';
 import useAdStore from '../../store/useAdStore';
 import { UserPlus, RefreshCw, X, Sword, Shield, Heart, Crosshair, Zap, Video } from 'lucide-react';
@@ -14,8 +15,9 @@ import { RerollAdButton } from '../components/AdButtons';
 
 const RecruitmentPanel = () => {
     const { activePanel, closePanel, selectedGridSlot, gameState } = useGameStore();
-    const { candidates, generateCandidates, reroll, recruit } = useRecruitmentStore();
+    const { candidates, generateCandidates, reroll, recruit, getGoldCost } = useRecruitmentStore();
     const { souls } = useMetaStore();
+    const { gold } = useResourceStore();
 
     useEffect(() => {
         if (activePanel === 'recruitment') {
@@ -41,8 +43,10 @@ const RecruitmentPanel = () => {
         }
     };
 
-    const recruitCost = 10;
+    const recruitSoulCost = 10;
+    const recruitGoldCost = getGoldCost();
     const rerollCost = 5;
+    const canAffordRecruit = souls >= recruitSoulCost && gold >= recruitGoldCost;
 
     return (
         <div className="glass-panel anim-scale-in" style={{
@@ -65,7 +69,7 @@ const RecruitmentPanel = () => {
                     <h2 className="font-display" style={{ margin: 0, fontSize: '2rem', color: 'var(--accent-secondary)' }}>Choose Your Hero</h2>
                     <div style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
                         Target Slot: <span style={{ color: 'white', fontWeight: 'bold' }}>#{selectedGridSlot ? selectedGridSlot.x + 1 : '?'}</span>
-                        <span style={{ marginLeft: '1.5rem', color: 'var(--accent-secondary)' }}>Cost: {recruitCost} Souls</span>
+                        <span style={{ marginLeft: '1.5rem', color: 'var(--accent-secondary)' }}>Cost: {recruitSoulCost} Souls + {recruitGoldCost} Gold</span>
                     </div>
                 </div>
                 <GameButton onClick={closePanel} style={{ padding: '8px', background: 'transparent', border: 'none' }}>
@@ -141,12 +145,12 @@ const RecruitmentPanel = () => {
                             {/* Recruit Button */}
                             <GameButton
                                 onClick={() => handleRecruit(index)}
-                                disabled={souls < recruitCost}
+                                disabled={!canAffordRecruit}
                                 style={{
                                     marginTop: 'auto',
                                     padding: '0.8rem',
-                                    background: souls >= recruitCost ? classDef?.color || 'var(--accent-secondary)' : 'var(--bg-panel)',
-                                    border: souls >= recruitCost ? `1px solid ${classDef?.color}` : '1px solid var(--panel-border)',
+                                    background: canAffordRecruit ? classDef?.color || 'var(--accent-secondary)' : 'var(--bg-panel)',
+                                    border: canAffordRecruit ? `1px solid ${classDef?.color}` : '1px solid var(--panel-border)',
                                     fontWeight: 'bold',
                                     fontSize: '1rem',
                                     justifyContent: 'center'
@@ -154,9 +158,9 @@ const RecruitmentPanel = () => {
                             >
                                 <UserPlus size={18} /> Recruit
                             </GameButton>
-                            {souls < recruitCost && (
+                            {!canAffordRecruit && (
                                 <div style={{ fontSize: '0.7rem', color: '#e74c3c', textAlign: 'center', marginTop: '0.2rem' }}>
-                                    Not enough Souls
+                                    {souls < recruitSoulCost ? 'Not enough Souls' : 'Not enough Gold'}
                                 </div>
                             )}
                         </div>

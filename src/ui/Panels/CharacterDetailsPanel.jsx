@@ -56,6 +56,12 @@ const CharacterDetailsPanel = () => {
     const upgradeCost = Math.floor(100 * Math.pow(1.5, level - 1));
     const equipStats = member.equipment?.combinedStats || { atk: 0, def: 0, hp: 0 };
 
+    const currentHp = member.currentHp ?? member.stats.hp;
+    const maxHp = member.stats.hp;
+    const needsHeal = currentHp < maxHp;
+    const healCost = level * 5;
+    const { gameState } = useGameStore();
+
     const handleUpgrade = () => {
         if (gold >= upgradeCost) {
             removeGold(upgradeCost);
@@ -70,6 +76,13 @@ const CharacterDetailsPanel = () => {
                 currentHp: Math.floor(member.stats.hp * 1.1),
             });
         }
+    };
+
+    const handleHealInTown = () => {
+        if (!needsHeal || gold < healCost) return;
+        removeGold(healCost);
+        updateMember(member.id, { currentHp: maxHp });
+        AudioManager.playSFX('ui_click');
     };
 
     const handleDismiss = () => {
@@ -281,6 +294,26 @@ const CharacterDetailsPanel = () => {
                 <ArrowUpCircle size={20} />
                 Upgrade ({upgradeCost} G)
             </GameButton>
+
+            {/* Lobby Heal */}
+            {gameState === 'LOBBY' && needsHeal && (
+                <GameButton
+                    onClick={handleHealInTown}
+                    disabled={gold < healCost}
+                    style={{
+                        width: '100%',
+                        padding: '0.7rem',
+                        background: gold >= healCost ? 'rgba(231, 76, 60, 0.3)' : 'var(--bg-panel)',
+                        border: gold >= healCost ? '1px solid #e74c3c' : '1px solid var(--panel-border)',
+                        marginBottom: '0.8rem',
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold',
+                        color: gold >= healCost ? '#e74c3c' : '#888'
+                    }}
+                >
+                    <Heart size={16} /> Heal to Full ({healCost} G)
+                </GameButton>
+            )}
 
             <GameButton
                 onClick={handleDismiss}

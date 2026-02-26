@@ -34,8 +34,8 @@ describe('useLootStore', () => {
             }
         });
 
-        it('item rarity is one of Common, Uncommon, Rare, Epic', () => {
-            const validRarities = ['Common', 'Uncommon', 'Rare', 'Epic'];
+        it('item rarity is one of Common, Uncommon, Rare, Epic, Legendary', () => {
+            const validRarities = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
             for (let i = 0; i < 100; i++) {
                 const result = useLootStore.getState().rollLoot(1);
                 if (result) {
@@ -93,18 +93,20 @@ describe('useLootStore', () => {
     });
 
     describe('drop chance', () => {
-        it('approximately 30% of rolls produce items', () => {
+        it('approximately 50% of rolls produce items', () => {
             let drops = 0;
             const trials = 1000;
 
             for (let i = 0; i < trials; i++) {
+                // Clear inventory periodically to avoid hitting the cap
+                if (i % 40 === 0) useInventoryStore.setState({ items: [] });
                 if (useLootStore.getState().rollLoot(1) !== null) drops++;
             }
 
             const rate = drops / trials;
-            // Allow wide margin: 15% to 45%
-            expect(rate).toBeGreaterThan(0.15);
-            expect(rate).toBeLessThan(0.45);
+            // Allow wide margin: 35% to 65% (dropChance is 0.5)
+            expect(rate).toBeGreaterThan(0.35);
+            expect(rate).toBeLessThan(0.65);
         });
     });
 });

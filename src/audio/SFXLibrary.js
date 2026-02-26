@@ -331,6 +331,25 @@ export const SFX = {
         osc.stop(t + 0.02);
     },
 
+    ui_start_game: (ctx, dest, vol) => {
+        const t = ctx.currentTime;
+        // Ascending fanfare — C5 E5 G5 C6
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const start = t + i * 0.1;
+            gain.gain.setValueAtTime(0, start);
+            gain.gain.linearRampToValueAtTime(vol * 0.25, start + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+            osc.connect(gain).connect(dest);
+            osc.start(start);
+            osc.stop(start + 0.5);
+        });
+    },
+
     panel_open: (ctx, dest, vol) => {
         const t = ctx.currentTime;
         const noise = ctx.createBufferSource();
@@ -398,5 +417,126 @@ export const SFX = {
             osc.start(t);
             osc.stop(t + 0.3);
         });
-    }
+    },
+
+    // Skill activation — whoosh + sparkle
+    skill_activate: (ctx, dest, vol) => {
+        const t = ctx.currentTime;
+        // Whoosh sweep
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.exponentialRampToValueAtTime(1200, t + 0.15);
+        gain.gain.setValueAtTime(vol * 0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.2);
+        // Sparkle
+        [1200, 1600, 2000].forEach((freq, i) => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.frequency.value = freq;
+            const s = t + 0.05 + i * 0.03;
+            g.gain.setValueAtTime(vol * 0.15, s);
+            g.gain.exponentialRampToValueAtTime(0.001, s + 0.15);
+            o.connect(g).connect(dest);
+            o.start(s);
+            o.stop(s + 0.15);
+        });
+    },
+
+    // Crafting — anvil hit
+    craft_success: (ctx, dest, vol) => {
+        const t = ctx.currentTime;
+        // Metal clang
+        [800, 1200, 1600].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            const s = t + i * 0.04;
+            gain.gain.setValueAtTime(vol * 0.25, s);
+            gain.gain.exponentialRampToValueAtTime(0.001, s + 0.3);
+            osc.connect(gain).connect(dest);
+            osc.start(s);
+            osc.stop(s + 0.3);
+        });
+        // Impact thud
+        const lo = ctx.createOscillator();
+        const loG = ctx.createGain();
+        lo.frequency.setValueAtTime(100, t);
+        lo.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+        loG.gain.setValueAtTime(vol * 0.4, t);
+        loG.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+        lo.connect(loG).connect(dest);
+        lo.start(t);
+        lo.stop(t + 0.15);
+    },
+
+    // Salvage — grinding
+    salvage: (ctx, dest, vol) => {
+        const t = ctx.currentTime;
+        const noise = ctx.createBufferSource();
+        noise.buffer = getNoiseBuffer(ctx);
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2000, t);
+        filter.frequency.linearRampToValueAtTime(500, t + 0.3);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(vol * 0.3, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.3);
+        noise.connect(filter).connect(gain).connect(dest);
+        noise.start(t);
+        noise.stop(t + 0.3);
+    },
+
+    // Achievement unlock — triumphant arpeggio
+    achievement: (ctx, dest, vol) => {
+        const t = ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C E G C' E'
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const s = t + i * 0.06;
+            gain.gain.setValueAtTime(0, s);
+            gain.gain.linearRampToValueAtTime(vol * 0.2, s + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, s + 0.5);
+            osc.connect(gain).connect(dest);
+            osc.start(s);
+            osc.stop(s + 0.5);
+        });
+    },
+
+    // Zone transition — rising sweep
+    zone_advance: (ctx, dest, vol) => {
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.exponentialRampToValueAtTime(1200, t + 0.6);
+        gain.gain.setValueAtTime(vol * 0.3, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.6);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.6);
+    },
+
+    // UI click (alias)
+    ui_click: (ctx, dest, vol) => {
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(800, t);
+        gain.gain.setValueAtTime(vol * 0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        osc.connect(gain).connect(dest);
+        osc.start(t);
+        osc.stop(t + 0.05);
+    },
 };

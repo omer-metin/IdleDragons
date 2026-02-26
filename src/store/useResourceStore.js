@@ -4,7 +4,7 @@ import useAdStore from './useAdStore';
 const useResourceStore = create((set, get) => ({
     gold: 0,
     xp: 0,
-    materials: {},
+    materials: {}, // @planned — reserved for crafting system (Phase 2+)
 
     addGold: (amount) => set((state) => {
         const isBoostActive = useAdStore.getState().goldBoostActive;

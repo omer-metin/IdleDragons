@@ -1,7 +1,7 @@
 import React from 'react';
 import useResourceStore from '../../store/useResourceStore';
 import useGameStore from '../../store/useGameStore';
-import { Coins, Swords, Pause, Play, Zap, FastForward, Skull, TrendingUp, LogOut } from 'lucide-react';
+import { Coins, Swords, Pause, Play, Zap, FastForward, Skull, TrendingUp, LogOut, Trophy } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 import { GoldBoostButton } from '../components/AdButtons';
@@ -10,7 +10,7 @@ const HUD = () => {
     const { gold, xp } = useResourceStore();
     const { isRunning, zone, wave, wavesPerZone, totalKills, togglePause, timeMultiplier, setTimeMultiplier } = useGameStore();
 
-    const speedOptions = [1, 2, 5];
+    const speedOptions = [1, 2, 3];
 
     return (
         <div style={{
@@ -139,13 +139,29 @@ const HUD = () => {
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <GameButton
+                        onClick={() => useGameStore.getState().openPanel('achievements')}
+                        title="Achievements"
+                        style={{
+                            padding: '0.5rem',
+                            background: '#FFFFFF',
+                            border: '3px solid #000000',
+                            width: '44px',
+                            height: '44px',
+                            justifyContent: 'center',
+                            boxShadow: '0 6px 12px rgba(0,0,0,0.6)',
+                            color: '#d4a017'
+                        }}
+                    >
+                        <Trophy size={20} strokeWidth={3} />
+                    </GameButton>
+                    <GameButton
                         onClick={() => useGameStore.getState().openPanel('help')}
                         title="Game Guide"
                         style={{
                             padding: '0.5rem',
                             background: '#FFFFFF',
                             border: '3px solid #000000',
-                            width: '44px', // Min touch
+                            width: '44px',
                             height: '44px',
                             justifyContent: 'center',
                             boxShadow: '0 6px 12px rgba(0,0,0,0.6)',

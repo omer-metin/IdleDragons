@@ -98,6 +98,7 @@ class AudioManager {
 
         this.currentBgmNodes = [];
         this.activeBgm = null;
+        this.stopMelodyLoop();
     }
 
     startBGM(type) {
@@ -159,36 +160,83 @@ class AudioManager {
             addOsc('triangle', 196.00, 0.04); // G3
             addNoise('lowpass', 200, 0.02);
 
+            // Melodic arpeggio layer
+            this.startMelodyLoop('lobby', [
+                261.63, 311.13, 392.00, 466.16, 392.00, 311.13, // Cm9 arp
+            ], 0.4, 0.06, 'triangle');
+
         } else if (type === 'adventure') {
-            // "The March" - Cm add9 (more rhythmic/forward)
+            // "The March" - Cm drone + melody
             addOsc('sawtooth', 65.41, 0.08); // C2
             addOsc('triangle', 130.81, 0.06); // C3
             addOsc('triangle', 196.00, 0.05); // G3
-            addOsc('sine', 392.00, 0.02); // G4
-
-            // LFO for rhythm
-            const lfo = this.ctx.createOscillator();
-            lfo.frequency.value = 2.0; // 120bpm feel
-            const lfoGain = this.ctx.createGain();
-            lfoGain.gain.value = 100;
-
-            // Connect LFO to something? For now simple drone is safer for CPU/complexity
-            // Let's just add detuned saws for thickness
             addOsc('sawtooth', 65.41, 0.04, 5);
             addOsc('sawtooth', 65.41, 0.04, -5);
 
+            // Melodic loop — pentatonic march
+            this.startMelodyLoop('adventure', [
+                261.63, 293.66, 349.23, 392.00, 349.23, 293.66,  // C D F G F D
+                261.63, 196.00, 261.63, 293.66, 349.23, 392.00,  // C G4 C D F G
+            ], 0.25, 0.08, 'square');
+
         } else if (type === 'boss') {
             // "The Challenge" - Dissonant/Tense
-            addOsc('sawtooth', 58.27, 0.15); // Bb1 (Low rumble)
+            addOsc('sawtooth', 58.27, 0.15); // Bb1
             addOsc('sawtooth', 116.54, 0.08); // Bb2
             addOsc('square', 174.61, 0.05); // F3
             addOsc('sawtooth', 233.08, 0.04); // Bb3
-            addOsc('triangle', 246.94, 0.03); // B3 (Tritone clash against F)
-
+            addOsc('triangle', 246.94, 0.03); // B3 (Tritone)
             addNoise('bandpass', 100, 0.05);
+
+            // Aggressive melody loop
+            this.startMelodyLoop('boss', [
+                233.08, 246.94, 233.08, 174.61, // Bb B Bb F
+                233.08, 311.13, 293.66, 233.08, // Bb Eb D Bb
+            ], 0.2, 0.1, 'sawtooth');
         }
 
         this.currentBgmNodes = nodes;
+    }
+
+    /** Play a looping melody sequence on top of the BGM drone. */
+    startMelodyLoop(id, notes, noteDuration, vol, oscType = 'sine') {
+        this.stopMelodyLoop();
+
+        let noteIndex = 0;
+        const playNote = () => {
+            if (!this.initialized || !this.ctx || this.activeBgm !== id) {
+                this.melodyInterval = null;
+                return;
+            }
+
+            const t = this.ctx.currentTime;
+            const freq = notes[noteIndex % notes.length];
+            noteIndex++;
+
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = oscType;
+            osc.frequency.value = freq;
+
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(vol, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + noteDuration * 0.9);
+
+            osc.connect(gain).connect(this.bgmGain);
+            osc.start(t);
+            osc.stop(t + noteDuration);
+        };
+
+        // Play first note immediately, then loop
+        playNote();
+        this.melodyInterval = setInterval(playNote, noteDuration * 1000);
+    }
+
+    stopMelodyLoop() {
+        if (this.melodyInterval) {
+            clearInterval(this.melodyInterval);
+            this.melodyInterval = null;
+        }
     }
 }
 

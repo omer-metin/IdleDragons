@@ -11,19 +11,22 @@ describe('useRecruitmentStore', () => {
         useResourceStore.getState().reset();
         usePartyStore.setState({ members: [], gridSize: { width: 3, height: 3 } });
         useMetaStore.setState({ souls: 100 });
-        useGameStore.setState({ gameState: 'LOBBY' });
+        useGameStore.setState({ gameState: 'LOBBY', zone: 1 });
+        useResourceStore.setState({ gold: 1000 }); // Enough gold for recruiting
     });
 
     it('generates one candidate per class', () => {
         useRecruitmentStore.getState().generateCandidates();
         const candidates = useRecruitmentStore.getState().candidates;
-        expect(candidates).toHaveLength(4);
+        expect(candidates).toHaveLength(6); // One per class (Warrior, Mage, Archer, Cleric, Rogue, Paladin)
 
         const classes = candidates.map(c => c.class);
         expect(classes).toContain('Warrior');
         expect(classes).toContain('Mage');
         expect(classes).toContain('Archer');
         expect(classes).toContain('Cleric');
+        expect(classes).toContain('Rogue');
+        expect(classes).toContain('Paladin');
     });
 
     it('rerolls candidates deducting souls', () => {
@@ -46,7 +49,7 @@ describe('useRecruitmentStore', () => {
         expect(success).toBe(true);
         expect(usePartyStore.getState().members).toHaveLength(1);
         expect(useMetaStore.getState().souls).toBe(initialSouls - 10); // 10 Soul cost
-        expect(useRecruitmentStore.getState().candidates).toHaveLength(3); // 4 - 1 recruited
+        expect(useRecruitmentStore.getState().candidates).toHaveLength(5); // 6 - 1 recruited
     });
 
     it('fails to recruit if game is running', () => {

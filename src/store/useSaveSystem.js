@@ -5,6 +5,8 @@ import useResourceStore from './useResourceStore';
 import useInventoryStore from './useInventoryStore';
 import useTutorialStore from './useTutorialStore';
 import useAdStore from './useAdStore';
+import useAchievementStore from './useAchievementStore';
+import useDailyRewardStore from './useDailyRewardStore';
 
 const SAVE_KEY = 'idlesndragons_save';
 const SAVE_INTERVAL = 30000; // 30 seconds
@@ -75,6 +77,8 @@ class SaveSystem {
                 },
                 tutorial: useTutorialStore.getState().getSaveData(),
                 ads: useAdStore.getState().getSaveData(),
+                achievements: useAchievementStore.getState().getSaveData(),
+                dailyRewards: useDailyRewardStore.getState().getSaveData(),
             };
 
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -161,6 +165,19 @@ class SaveSystem {
             if (data.ads) {
                 useAdStore.getState().loadSaveData(data.ads);
             }
+
+            // Restore Achievements
+            if (data.achievements) {
+                useAchievementStore.getState().loadSaveData(data.achievements);
+            }
+
+            // Restore Daily Rewards
+            if (data.dailyRewards) {
+                useDailyRewardStore.getState().loadSaveData(data.dailyRewards);
+            }
+
+            // Check daily reward availability
+            useDailyRewardStore.getState().onGameLoad();
 
             return data;
 

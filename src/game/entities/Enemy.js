@@ -23,6 +23,7 @@ export class Enemy extends PIXI.Container {
         this.type = data.type || 'melee'; // melee, ranged, healer
         this.healCooldown = 0;
         this.healInterval = 180; // 3 sec
+        this.stunTimer = 0; // Set by Warrior Shield Bash
 
         // Stats adjustments based on type
         if (this.type === 'ranged') {
@@ -88,7 +89,16 @@ export class Enemy extends PIXI.Container {
 
         // Body Shape based on Type
         // Try Pixel Art first
-        const spriteKey = this.data.spriteKey || 'Goblin'; // default
+        // Sprite key lookup with fallback mapping for multi-word enemy names
+        const SPRITE_FALLBACKS = {
+            'Demon Imp': 'Imp', 'Hellhound': 'Wolf', 'Harpy': 'Bat',
+            'Fire Elemental': 'Golem', 'Magma Golem': 'Golem', 'Salamander': 'Dragon',
+            'Shadow Dragon': 'Dragon', 'Dark Knight': 'Orc', 'Void Walker': 'Wraith',
+            'Shade': 'Wraith', 'Phantom': 'Ghost', 'Bandit': 'Orc',
+            'Ogre': 'Troll', 'Basilisk': 'Dragon',
+        };
+        const rawKey = this.data.spriteKey || 'Goblin';
+        const spriteKey = EnemySprites[rawKey] ? rawKey : (SPRITE_FALLBACKS[rawKey] || 'Goblin');
         const spriteData = EnemySprites[spriteKey];
         const palette = EnemyPalettes[spriteKey];
 
@@ -308,7 +318,15 @@ export class Enemy extends PIXI.Container {
             }
         }
 
-        // Logic (Movement / Attack)
+        // Stun check (from Warrior Shield Bash)
+        if (this.stunTimer > 0) {
+            this.stunTimer -= delta;
+            if (this.bodyContainer) this.bodyContainer.alpha = 0.5 + Math.sin(Date.now() * 0.02) * 0.3;
+            return; // Skip all logic while stunned
+        } else if (this.bodyContainer && this.bodyContainer.alpha < 1) {
+            this.bodyContainer.alpha = 1;
+        }
+
         // Logic (Movement / Attack)
         if (this.type === 'healer') {
             this.healCooldown -= delta;

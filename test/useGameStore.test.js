@@ -92,9 +92,9 @@ describe('useGameStore', () => {
             expect(useGameStore.getState().enemiesKilledThisWave).toBe(2);
         });
 
-        it('5 kills fills wave (enemiesPerWave defaults to 5)', () => {
-            for (let i = 0; i < 5; i++) useGameStore.getState().addKill();
-            expect(useGameStore.getState().enemiesKilledThisWave).toBe(5);
+        it('3 kills fills wave (enemiesPerWave defaults to 3)', () => {
+            for (let i = 0; i < 3; i++) useGameStore.getState().addKill();
+            expect(useGameStore.getState().enemiesKilledThisWave).toBe(3);
             expect(useGameStore.getState().isWaveCleared()).toBe(true);
         });
     });
@@ -173,8 +173,18 @@ describe('useGameStore', () => {
     // --- Edge Cases ---
     describe('edge cases', () => {
         it('setTimeMultiplier stores value', () => {
-            useGameStore.getState().setTimeMultiplier(5);
-            expect(useGameStore.getState().timeMultiplier).toBe(5);
+            useGameStore.getState().setTimeMultiplier(3);
+            expect(useGameStore.getState().timeMultiplier).toBe(3);
+        });
+
+        it('setTimeMultiplier caps at 3x max', () => {
+            useGameStore.getState().setTimeMultiplier(10);
+            expect(useGameStore.getState().timeMultiplier).toBe(3);
+        });
+
+        it('setTimeMultiplier allows values below cap', () => {
+            useGameStore.getState().setTimeMultiplier(3);
+            expect(useGameStore.getState().timeMultiplier).toBe(3);
         });
 
         it('calling startGame twice does not corrupt state', () => {

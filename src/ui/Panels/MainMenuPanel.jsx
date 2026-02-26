@@ -106,7 +106,7 @@ const MainMenuPanel = () => {
             </div>
 
             <div style={{ position: 'absolute', bottom: '20px', right: '20px', fontSize: '0.8rem', color: '#bdc3c7' }}>
-                v0.1.0 - Main Menu Feature
+                v0.3.0 - Phase 2 Complete
             </div>
         </div>
     );

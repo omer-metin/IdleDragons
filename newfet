@@ -1,5 +1,0 @@
-Characters must be recruited with a cost and placable to the grid. They also be upgradable. As this game a kind of a idle base builder and tower defense, we will think the party as the constantly moving base. So character placement should be fixed by grid system. The party (base) upgrades can be long term upgrades while the character upgrades in party can be short term upgrades. 
-
-In a meta term, the player will be Dungeon Master (DM) or Game Master (GM) who wants its party to success by gathering adventuring points. After some improvements that require exponential cost, new upgrades will be too hard and the DM (the player) will be able to decide a TPK to reset the party with meta progression. 
-
-Lets plan and implements this. You can use the browser tool to play game for tests and debugs. The game is currently running localhost:5173. 

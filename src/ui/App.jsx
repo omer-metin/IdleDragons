@@ -3,7 +3,9 @@ import CanvasContainer from './components/CanvasContainer';
 import OfflineEarningsPopup from './components/OfflineEarningsPopup';
 import LoadingScreen from './components/LoadingScreen';
 import TutorialOverlay from './components/TutorialOverlay';
+import DailyRewardPopup from './components/DailyRewardPopup';
 import HUD from './HUD/HUD';
+import SkillBar from './HUD/SkillBar';
 import PartyPanel from './Panels/PartyPanel';
 import PartySidebar from './HUD/PartySidebar';
 import InventoryPanel from './Panels/InventoryPanel';
@@ -23,6 +25,8 @@ import MainMenuPanel from './Panels/MainMenuPanel';
 import TPKPanel from './Panels/TPKPanel';
 import SettingsPanel from './Panels/SettingsPanel';
 import CreditsPanel from './Panels/CreditsPanel';
+import AchievementsPanel from './Panels/AchievementsPanel';
+import CraftingPanel from './Panels/CraftingPanel';
 import PauseOverlay from './Panels/PauseOverlay';
 import ConfirmDialog from './components/ConfirmDialog';
 import CrazyGamesSDK from '../platform/CrazyGames';
@@ -182,6 +186,7 @@ const App = () => {
             ) : gameState === 'RUNNING' || gameState === 'PAUSED' ? (
                 <>
                     <HUD />
+                    <SkillBar />
                     <PartyPanel />
                     <InventoryPanel />
                     <CharacterDetailsPanel />
@@ -189,6 +194,8 @@ const App = () => {
                     <SettingsPanel />
                     <CreditsPanel />
                     <HelpPanel />
+                    <AchievementsPanel />
+                    <CraftingPanel />
                     {gameState === 'PAUSED' && <PauseOverlay />}
                 </>
             ) : gameState === 'LOBBY' ? (
@@ -200,10 +207,12 @@ const App = () => {
                     <SettingsPanel />
                     <CreditsPanel />
                     <HelpPanel />
+                    <AchievementsPanel />
                 </>
             ) : gameState === 'GAMEOVER' ? (
                 <ResultsPanel />
             ) : null}
+            <DailyRewardPopup />
             <ConfirmDialog />
         </div>
     );

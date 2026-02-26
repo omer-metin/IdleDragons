@@ -12,7 +12,7 @@ const useGameStore = create((set, get) => ({
     zone: 1,
     wave: 1,
     wavesPerZone: 10,
-    enemiesPerWave: 5,
+    enemiesPerWave: 3,
     enemiesKilledThisWave: 0,
     totalKills: 0,
 
@@ -30,7 +30,7 @@ const useGameStore = create((set, get) => ({
         return {};
     }),
 
-    setTimeMultiplier: (multiplier) => set({ timeMultiplier: multiplier }),
+    setTimeMultiplier: (multiplier) => set({ timeMultiplier: Math.min(multiplier, 3) }),
 
     incrementDistance: (amount) => set((state) => {
         if (state.gameState !== 'RUNNING') return {};
@@ -75,10 +75,14 @@ const useGameStore = create((set, get) => ({
                 CrazyGamesSDK.showInterstitialAd();
             }
 
+            // Scale enemies per wave with zone (3 base + zone/3, capped at 8)
+            const newEnemiesPerWave = Math.min(8, 3 + Math.floor(newZone / 3));
+
             set({
                 zone: newZone,
                 wave: 1,
                 enemiesKilledThisWave: 0,
+                enemiesPerWave: newEnemiesPerWave,
                 score: newZone * 100 + 10,
             });
         } else {
@@ -102,6 +106,7 @@ const useGameStore = create((set, get) => ({
         score: 0,
         zone: 1,
         wave: 1,
+        enemiesPerWave: 3,
         enemiesKilledThisWave: 0,
         totalKills: 0,
         gameState: 'LOBBY',

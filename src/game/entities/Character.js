@@ -4,6 +4,7 @@ import PixelArtGenerator from '../utils/PixelArtGenerator';
 import { HeroSprites, HeroPalettes } from '../assets/PixelArtAssets';
 import useGameStore from '../../store/useGameStore';
 import usePartyStore from '../../store/usePartyStore';
+import { SKILL_DEFS } from '../systems/SkillSystem';
 
 export class Character extends PIXI.Container {
     constructor(data) {
@@ -35,8 +36,16 @@ export class Character extends PIXI.Container {
         // Cleric healing
         this.isHealer = data.canHeal || data.class === 'Cleric';
         this.healCooldown = 0;
-        this.healInterval = 120; // Heal every ~2 seconds
-        this.healAmount = Math.max(5, Math.floor((data.stats?.atk || 8) * 0.5));
+        this.healInterval = 180; // Heal every ~3 seconds
+        this.healAmount = Math.max(3, Math.floor((data.stats?.atk || 8) * 0.3));
+
+        // Skill system
+        this.skillDef = SKILL_DEFS[data.class] || null;
+        this.skillCooldown = this.skillDef ? this.skillDef.cooldown * 0.5 : 0; // Start at half CD
+        this.skillMaxCooldown = this.skillDef ? this.skillDef.cooldown : 0;
+
+        // Divine Shield timer (set by Paladin skill)
+        this.divineShieldTimer = 0;
 
         // Sleep zzZ animation
         this.sleepZTimer = 0;
@@ -81,7 +90,7 @@ export class Character extends PIXI.Container {
         if (spriteData && palette) {
             const texture = PixelArtGenerator.getTexture(this.data.class, spriteData, palette);
             const sprite = new PIXI.Sprite(texture);
-            sprite.scale.set(4); // 12px -> 48px
+            sprite.scale.set(3); // 20px -> 60px
             sprite.anchor.set(0.5, 1);
             this.body.addChild(sprite);
         } else {
@@ -185,7 +194,12 @@ export class Character extends PIXI.Container {
         if (this.isDead) return;
 
         const defense = this.def;
-        const finalDmg = Math.max(1, Math.floor(amount - defense * 0.5));
+        let finalDmg = Math.max(1, Math.floor(amount - defense * 0.5));
+
+        // Divine Shield: 50% damage reduction
+        if (this.divineShieldTimer > 0) {
+            finalDmg = Math.max(1, Math.floor(finalDmg * 0.5));
+        }
 
         const currentHp = Math.max(0, (this.data.currentHp ?? this.data.stats.hp) - finalDmg);
         usePartyStore.getState().updateMember(this.id, { currentHp });
@@ -284,13 +298,13 @@ export class Character extends PIXI.Container {
             this.sleepText.y = -36 + Math.sin(this.sleepZTimer * 0.03) * 5;
             this.sleepText.alpha = 0.5 + Math.sin(this.sleepZTimer * 0.05) * 0.3;
 
-            // Heal while sleeping (5% maxHP per second)
+            // Heal while sleeping (2% maxHP per second)
             this.sleepHealTimer += delta;
             if (this.sleepHealTimer >= this.sleepHealInterval) {
                 this.sleepHealTimer = 0;
                 const maxHp = this.data.stats?.hp || 100;
                 const currentHp = this.data.currentHp ?? 0;
-                const healAmount = Math.max(1, Math.floor(maxHp * 0.05));
+                const healAmount = Math.max(1, Math.floor(maxHp * 0.02));
                 const newHp = Math.min(maxHp, currentHp + healAmount);
                 usePartyStore.getState().updateMember(this.id, { currentHp: newHp });
                 this.data.currentHp = newHp;
@@ -321,6 +335,29 @@ export class Character extends PIXI.Container {
                     const healAmt = this.healAmount + (equipStats.atk || 0);
                     target.receiveHeal(healAmt);
                     CombatSystem.showHealText(target, healAmt);
+                }
+            }
+        }
+
+        // Divine Shield countdown
+        if (this.divineShieldTimer > 0) {
+            this.divineShieldTimer -= delta;
+        }
+
+        // Skill auto-cast
+        if (this.skillDef) {
+            this.skillCooldown -= delta;
+            if (this.skillCooldown <= 0) {
+                // Get scene reference from CombatSystem
+                const scene = CombatSystem.scene;
+                if (scene) {
+                    const fired = this.skillDef.execute(this, scene);
+                    if (fired) {
+                        this.skillCooldown = this.skillMaxCooldown;
+                    } else {
+                        // No valid target — retry soon
+                        this.skillCooldown = 60; // 1s
+                    }
                 }
             }
         }

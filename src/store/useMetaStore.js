@@ -4,6 +4,7 @@ import useResourceStore from './useResourceStore';
 import usePartyStore from './usePartyStore';
 import useRecruitmentStore from './useRecruitmentStore';
 import useInventoryStore from './useInventoryStore';
+import useAchievementStore from './useAchievementStore';
 import EncounterManager from '../game/systems/EncounterManager';
 
 const UPGRADES = {
@@ -138,6 +139,9 @@ const useMetaStore = create((set, get) => ({
             souls: state.souls + pendingSouls,
             generation: state.generation + 1
         }));
+
+        // Track souls for achievements
+        useAchievementStore.getState().trackSouls(pendingSouls);
 
         // Reset Game
         useGameStore.getState().resetGame();

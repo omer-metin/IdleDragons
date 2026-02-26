@@ -10,7 +10,6 @@ class GameApp {
     constructor() {
         this.app = null;
         this.scene = null;
-        window.GameApp = this; // DEBUG
     }
 
     async init(container) {
@@ -43,8 +42,6 @@ class GameApp {
         }
 
         // Start Loop
-        window.PIXI = PIXI;
-        window.GameApp = this;
         this.app.ticker.add((delta) => {
             try {
                 this.update(delta);
@@ -93,10 +90,6 @@ class GameApp {
         // Increment Distance
         useGameStore.getState().incrementDistance(0.1 * delta * timeMultiplier);
 
-        // FORCE RENDER
-        if (this.app && this.app.renderer) {
-            this.app.renderer.render(this.app.stage);
-        }
     }
 
     destroy() {

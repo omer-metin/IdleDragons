@@ -5,6 +5,9 @@ import CombatSystem from '../systems/CombatSystem';
 import { toScreen, toGrid, TILE_WIDTH, TILE_HEIGHT } from '../utils/Isometric';
 import { Character } from '../entities/Character';
 import ParticleSystem from '../systems/ParticleSystem';
+import EncounterManager from '../systems/EncounterManager';
+import useToastStore from '../../store/useToastStore';
+import { getThemeForZone, getThemeTier } from '../data/ZoneThemes';
 
 export class AdventureScene extends PIXI.Container {
     constructor(app) {
@@ -17,10 +20,16 @@ export class AdventureScene extends PIXI.Container {
         this.addChild(this.isoContainer);
 
         this.groundVisual = null;
+        this.currentThemeTier = -1; // Force initial theme load
         this.setupGround();
 
         this.enemyMap = new Map();
         this.characterMap = new Map();
+
+        // Zone transition flash overlay
+        this.transitionOverlay = new PIXI.Graphics();
+        this.transitionOverlay.zIndex = 9998;
+        this.transitionAlpha = 0;
 
         // TPK Cooldown
         this.tpkTimer = 0;
@@ -32,6 +41,9 @@ export class AdventureScene extends PIXI.Container {
 
         // Bind Particle System
         ParticleSystem.bindContainer(this.vfxContainer);
+
+        // Add transition overlay to vfx container
+        this.isoContainer.addChild(this.transitionOverlay);
 
         // Highlight
         this.selectedTileHighlight = new PIXI.Graphics();
@@ -82,26 +94,30 @@ export class AdventureScene extends PIXI.Container {
     }
 
     setupGround() {
-        const texture = this.generateGroundTexture();
+        const zone = useGameStore.getState().zone || 1;
+        const theme = getThemeForZone(zone);
+        this.currentThemeTier = getThemeTier(zone);
+
+        const texture = this.generateGroundTexture(theme);
         this.groundVisual = new PIXI.TilingSprite(texture, this.app.screen.width + 1000, this.app.screen.height + 1000);
         this.groundVisual.anchor.set(0.5);
         this.groundVisual.zIndex = -10000;
         this.isoContainer.addChild(this.groundVisual);
     }
 
-    generateGroundTexture() {
+    generateGroundTexture(theme) {
         const size = 512;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        // Dark forest/dungeon floor
-        ctx.fillStyle = '#1a1a24';
+        // Zone-themed floor color
+        ctx.fillStyle = theme.groundColor;
         ctx.fillRect(0, 0, size, size);
 
         // Horizontal streaks for speed feel
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillStyle = theme.streakColor;
         for (let i = 0; i < 20; i++) {
             const h = Math.random() * 20 + 2;
             const w = Math.random() * size;
@@ -111,6 +127,56 @@ export class AdventureScene extends PIXI.Container {
         }
 
         return PIXI.Texture.from(canvas);
+    }
+
+    /** Swap ground texture when zone tier changes. */
+    updateZoneTheme() {
+        const zone = useGameStore.getState().zone || 1;
+        const tier = getThemeTier(zone);
+
+        if (tier !== this.currentThemeTier) {
+            const oldTier = this.currentThemeTier;
+            this.currentThemeTier = tier;
+            const theme = getThemeForZone(zone);
+
+            // Regenerate ground
+            if (this.groundVisual) {
+                const newTexture = this.generateGroundTexture(theme);
+                this.groundVisual.texture = newTexture;
+            }
+
+            // Reset ambient particles for new theme
+            if (this.ambientParticles) {
+                for (const p of this.ambientParticles) {
+                    this.vfxContainer.removeChild(p.sprite);
+                }
+                this.ambientParticles = null; // Will be recreated on next frame
+            }
+
+            // Flash transition effect (only when moving forward, not on first load)
+            if (oldTier >= 0) {
+                this.triggerZoneTransition();
+            }
+        }
+    }
+
+    /** White flash + fade for zone tier transitions. */
+    triggerZoneTransition() {
+        this.transitionAlpha = 0.6;
+    }
+
+    updateTransitionOverlay(delta) {
+        if (this.transitionAlpha > 0) {
+            this.transitionOverlay.clear();
+            this.transitionOverlay.beginFill(0xffffff, this.transitionAlpha);
+            this.transitionOverlay.drawRect(-2000, -2000, 4000, 4000);
+            this.transitionOverlay.endFill();
+            this.transitionAlpha -= 0.015 * delta;
+            if (this.transitionAlpha <= 0) {
+                this.transitionAlpha = 0;
+                this.transitionOverlay.clear();
+            }
+        }
     }
 
     drawIsometricGrid() {
@@ -212,7 +278,9 @@ export class AdventureScene extends PIXI.Container {
         this.syncParty();
         this.checkPartyStatus(delta);
         this.updateSelectedTileHighlight();
+        this.updateZoneTheme();
         this.updateAmbientParticles(delta);
+        this.updateTransitionOverlay(delta);
         ParticleSystem.update(delta);
 
         // Entity Updates
@@ -288,11 +356,10 @@ export class AdventureScene extends PIXI.Container {
                 }
 
                 // Reset enemies
-                const EncounterManager = require('../systems/EncounterManager').default;
                 EncounterManager.reset();
 
                 // Feedback
-                const { addToast } = require('../../store/useToastStore').default.getState();
+                const { addToast } = useToastStore.getState();
                 addToast({
                     type: 'death',
                     message: 'PARTY WIPED! Restarting Zone...',
@@ -324,31 +391,51 @@ export class AdventureScene extends PIXI.Container {
     }
 
     updateAmbientParticles(delta) {
+        const zone = useGameStore.getState().zone || 1;
+        const theme = getThemeForZone(zone);
+
         if (!this.ambientParticles) {
-            // Lazy init
+            // Lazy init with zone-themed particles
             this.ambientParticles = [];
-            for (let i = 0; i < 20; i++) {
+            const count = theme.particleCount || 15;
+            const [minR, maxR] = theme.particleSize || [1, 2.5];
+
+            for (let i = 0; i < count; i++) {
                 const p = new PIXI.Graphics();
-                p.beginFill(0xffffff, Math.random() * 0.3);
-                p.drawCircle(0, 0, Math.random() * 2 + 1);
+                const r = Math.random() * (maxR - minR) + minR;
+                p.beginFill(theme.particleColor || 0xffffff, Math.random() * 0.3);
+                if (theme.particleShape === 'rect') {
+                    p.drawRect(-r, -r, r * 2, r * 2);
+                } else {
+                    p.drawCircle(0, 0, r);
+                }
                 p.endFill();
                 this.vfxContainer.addChild(p);
+                const speed = theme.particleSpeed || 0.3;
                 this.ambientParticles.push({
                     sprite: p,
                     x: (Math.random() - 0.5) * 2000,
                     y: (Math.random() - 0.5) * 2000,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: (Math.random() - 0.5) * 0.5
+                    vx: (Math.random() - 0.5) * speed,
+                    vy: (Math.random() - 0.5) * speed + (theme.particleGravity || 0),
+                    baseGravity: theme.particleGravity || 0,
+                    alphaBase: theme.particleAlphaBase || 0.2,
                 });
             }
         }
 
         for (const p of this.ambientParticles) {
             p.x += p.vx * delta;
-            p.y += p.vy * delta;
+            p.y += (p.vy + p.baseGravity) * delta;
             p.sprite.x = p.x;
             p.sprite.y = p.y;
-            p.sprite.alpha = 0.2 + Math.sin(Date.now() / 1000 + p.x) * 0.1;
+            p.sprite.alpha = p.alphaBase + Math.sin(Date.now() / 1000 + p.x) * 0.1;
+
+            // Wrap around when off-screen
+            if (p.x < -1200) p.x = 1200;
+            if (p.x > 1200) p.x = -1200;
+            if (p.y < -1200) p.y = 1200;
+            if (p.y > 1200) p.y = -1200;
         }
     }
 
