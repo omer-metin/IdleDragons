@@ -9,6 +9,8 @@ import useToastStore from '../../store/useToastStore';
 import useAchievementStore from '../../store/useAchievementStore';
 import CombatSystem from './CombatSystem';
 import ParticleSystem from './ParticleSystem';
+import CrazyGamesSDK from '../../platform/CrazyGames';
+import useEventStore from '../../store/useEventStore';
 
 class EncounterManager {
     constructor() {
@@ -28,9 +30,10 @@ class EncounterManager {
 
     getEnemyStats(zone) {
         const scaling = Math.pow(1.25, zone - 1);
+        const ascMult = useMetaStore.getState().getAscensionDifficultyMult();
         return {
-            hp: Math.floor(30 * scaling),
-            atk: Math.floor(8 * scaling),
+            hp: Math.floor(30 * scaling * ascMult),
+            atk: Math.floor(8 * scaling * ascMult),
             def: Math.floor(1 * scaling),
             goldReward: Math.floor(5 + zone * 2),
             xpReward: Math.floor(3 + zone * 1.5),
@@ -174,6 +177,11 @@ class EncounterManager {
 
         // Audio & Visuals
         AudioManager.playSFX(enemy.isBoss ? 'boss_death' : 'enemy_death');
+        if (enemy.isBoss) {
+            CrazyGamesSDK.happytime();
+            if (this.scene) this.scene.screenShake(10, 20);
+            ParticleSystem.emitBossSpawn(enemy.x, enemy.y - 20);
+        }
         CombatSystem.showDeathEffect(enemy);
         ParticleSystem.emitGold(enemy.x, enemy.y - 20);
         useToastStore.getState().addGoldToast(goldAmount);
@@ -183,12 +191,14 @@ class EncounterManager {
         const xpMult = 1 + (metaUpgrades.xpGain || 0) * 0.25;
         usePartyStore.getState().distributeXp(Math.floor(xpAmount * xpMult));
 
-        // Loot roll
+        // Loot roll (elite: guaranteed Rare+ x2, boss: x3, normal: x1)
         const { zone } = useGameStore.getState();
-        const lootRolls = enemy.isBoss ? 3 : 1;
+        const lootRolls = enemy.isBoss ? 3 : enemy.isElite ? 2 : 1;
 
         for (let i = 0; i < lootRolls; i++) {
-            const item = useLootStore.getState().rollLoot(zone);
+            const item = enemy.isElite
+                ? useLootStore.getState().rollEliteLoot(zone)
+                : useLootStore.getState().rollLoot(zone);
             if (item) {
                 // Visual Feedback for Loot
                 useToastStore.getState().addToast({
@@ -234,6 +244,7 @@ class EncounterManager {
 
         // If we wrapped to wave 1, it means we entered a new zone
         if (gameState.wave === 1) {
+            CrazyGamesSDK.happytime();
             const zoneBonus = gameState.zone * 50;
             useResourceStore.getState().addGold(zoneBonus);
             useAchievementStore.getState().trackGold(zoneBonus);
@@ -244,6 +255,24 @@ class EncounterManager {
                 color: '#8e44ad'
             });
             AudioManager.startBGM('adventure');
+
+            // Gold Interest (skill tree)
+            const interestRate = useMetaStore.getState().getSkillTreeEffect('goldInterest');
+            if (interestRate > 0) {
+                const currentGold = useResourceStore.getState().gold;
+                const interest = Math.floor(currentGold * interestRate);
+                if (interest > 0) {
+                    useResourceStore.getState().addGold(interest);
+                    useToastStore.getState().addGoldToast(interest);
+                }
+            }
+
+            // Random event roll between zones
+            const event = useEventStore.getState().rollEvent();
+            if (event) {
+                useGameStore.getState().openPanel('event');
+                useGameStore.getState().togglePause();
+            }
 
             // Check achievements on zone advance
             this.checkAchievements();
@@ -287,8 +316,22 @@ class EncounterManager {
             if (rand < 0.3) type = 'ranged';
         }
 
+        // Elite roll: 10% chance (not on boss waves)
+        const AFFIXES = ['vampiric', 'shielded', 'berserker'];
+        const isElite = Math.random() < 0.10;
+        const affix = isElite ? AFFIXES[Math.floor(Math.random() * AFFIXES.length)] : null;
+
+        // Elite stats: 2x HP & ATK
+        if (isElite) {
+            stats.hp *= 2;
+            stats.atk *= 2;
+            stats.goldReward *= 3;
+            stats.xpReward *= 2;
+        }
+
         // Strip prefixes for sprite key lookup
         const spriteKey = name.replace(/^(Frenzied |Shadow |Elder |Cursed )/, '');
+        const affixLabel = affix ? affix.charAt(0).toUpperCase() + affix.slice(1) + ' ' : '';
 
         const enemy = new Enemy({
             id: `${name.toLowerCase().replace(/\s/g, '_')}_${Math.random().toString(36).substr(2, 9)}`,
@@ -297,10 +340,12 @@ class EncounterManager {
             def: stats.def,
             goldReward: stats.goldReward,
             xpReward: stats.xpReward,
-            name: `${type === 'melee' ? '' : type + ' '}${name}`,
+            name: `${affixLabel}${type === 'melee' ? '' : type + ' '}${name}`,
             spriteKey: spriteKey,
             zone: zone,
-            type: type
+            type: type,
+            isElite: isElite,
+            affix: affix,
         });
 
         // Spawn at random edge (User requested random directions)
@@ -357,6 +402,10 @@ class EncounterManager {
 
         AudioManager.playSFX('boss_wave_start');
         AudioManager.startBGM('boss');
+        if (this.scene) {
+            this.scene.screenShake(6, 15);
+            ParticleSystem.emitBossSpawn(enemy.x, enemy.y - 20);
+        }
         useToastStore.getState().addToast({
             type: 'boss',
             message: `⚠ ${name} appeared!`,

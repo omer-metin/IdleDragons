@@ -34,6 +34,11 @@ export class AdventureScene extends PIXI.Container {
         // TPK Cooldown
         this.tpkTimer = 0;
 
+        // Screen Shake
+        this.shakeIntensity = 0;
+        this.shakeDuration = 0;
+        this.shakeDecay = 0.88;
+
         // VFX Container
         this.vfxContainer = new PIXI.Container();
         this.vfxContainer.zIndex = 9999;
@@ -211,7 +216,6 @@ export class AdventureScene extends PIXI.Container {
 
         // Interaction
         this.gridSprite.eventMode = 'static';
-        this.gridSprite.interactive = true;
         this.gridSprite.cursor = 'pointer';
 
         // Hit Area covering the whole slot region manually - make it HUGE to catch all clicks
@@ -258,10 +262,28 @@ export class AdventureScene extends PIXI.Container {
         }
     }
 
+    /** Trigger screen shake effect. Intensity = pixel displacement, duration = frames. */
+    screenShake(intensity, duration) {
+        // Stack shakes: take the stronger of current vs new
+        this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
+        this.shakeDuration = Math.max(this.shakeDuration, duration);
+    }
+
     update(delta) {
         // Center Camera
         this.isoContainer.x = this.app.screen.width / 2;
         this.isoContainer.y = this.app.screen.height / 2 + 100;
+
+        // Screen Shake
+        if (this.shakeDuration > 0) {
+            this.shakeDuration -= delta;
+            this.isoContainer.x += (Math.random() - 0.5) * this.shakeIntensity;
+            this.isoContainer.y += (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeIntensity *= this.shakeDecay;
+            if (this.shakeDuration <= 0) {
+                this.shakeIntensity = 0;
+            }
+        }
 
         if (this.groundVisual) {
             this.groundVisual.width = this.app.screen.width + 1000;

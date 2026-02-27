@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import useAdStore from '../../store/useAdStore';
 import GameButton from './GameButton';
-import { Zap, Play, RotateCw, Skull, Video } from 'lucide-react';
+import { Zap, Play, RotateCw, Skull, Video, FastForward, Ghost } from 'lucide-react';
 import useRecruitmentStore from '../../store/useRecruitmentStore';
 import useGameStore from '../../store/useGameStore';
 import usePartyStore from '../../store/usePartyStore';
@@ -144,7 +144,6 @@ export const RerollAdButton = () => {
 export const ReviveAdButton = ({ onRevive }) => {
     const { watchAd } = useAdStore.getState();
     const { reviveAll } = usePartyStore.getState();
-    const { reviveGame } = useGameStore.getState(); // Assuming we'll add this or just do manual state set
 
     return (
         <GameButton
@@ -152,17 +151,14 @@ export const ReviveAdButton = ({ onRevive }) => {
                 AudioManager.playSFX('ui_click');
                 watchAd('revive', () => {
                     reviveAll(0.5); // 50% HP
-                    // We need to set state to RUNNING. 
-                    // Since we can't import useGameStore inside helper if we want access to actions directly cleanly,
-                    // we'll rely on the manual logic:
                     useGameStore.setState({ gameState: 'RUNNING' });
-                    AudioManager.startBGM('adventure'); // Restart BGM
+                    AudioManager.startBGM('adventure');
                     if (onRevive) onRevive();
                 });
             }}
             style={{
                 padding: '1rem 2rem',
-                background: '#e74c3c', // Red
+                background: '#e74c3c',
                 border: '1px solid rgba(255,255,255,0.3)',
                 color: 'white',
                 fontSize: '1.2rem',
@@ -177,4 +173,150 @@ export const ReviveAdButton = ({ onRevive }) => {
             <Video size={24} /> REVIVE PARTY (50% HP)
         </GameButton>
     );
-}
+};
+
+export const SpeedBoostButton = () => {
+    const speedBoostActive = useAdStore((state) => state.speedBoostActive);
+    const { getSpeedBoostTimeRemaining, watchAd, getCooldownRemaining, activateSpeedBoost } = useAdStore.getState();
+
+    const [timeLeft, setTimeLeft] = useState(0);
+    const [cooldown, setCooldown] = useState(0);
+
+    useEffect(() => {
+        const update = () => {
+            setTimeLeft(getSpeedBoostTimeRemaining());
+            setCooldown(getCooldownRemaining('speed'));
+        };
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [speedBoostActive]);
+
+    const formatTime = (ms) => {
+        if (ms <= 0) return '0:00';
+        const s = Math.ceil(ms / 1000);
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m}:${sec.toString().padStart(2, '0')}`;
+    };
+
+    if (speedBoostActive) {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.3rem 0.6rem',
+                background: 'linear-gradient(45deg, #e67e22, #e74c3c)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '0.8rem',
+                fontWeight: 'bold',
+                boxShadow: '0 0 10px rgba(230, 126, 34, 0.4)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                animation: 'pulse 2s infinite'
+            }} title="5x Speed Active">
+                <FastForward size={14} fill="currentColor" />
+                {formatTime(timeLeft)}
+            </div>
+        );
+    }
+
+    const isCooldown = cooldown > 0;
+
+    return (
+        <GameButton
+            onClick={() => {
+                AudioManager.playSFX('ui_click');
+                watchAd('speed', activateSpeedBoost);
+            }}
+            disabled={isCooldown}
+            style={{
+                padding: '0.3rem 0.6rem',
+                background: isCooldown ? 'rgba(0,0,0,0.5)' : '#e67e22',
+                border: '1px solid rgba(255,255,255,0.2)',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                color: isCooldown ? '#bdc3c7' : 'white',
+                minWidth: '90px',
+                justifyContent: 'center'
+            }}
+            title={isCooldown ? `Cooldown: ${formatTime(cooldown)}` : "Watch Ad for 5x Speed (2m)"}
+        >
+            {isCooldown ? (
+                <>⏳ {formatTime(cooldown)}</>
+            ) : (
+                <><Video size={14} /> 5x Speed</>
+            )}
+        </GameButton>
+    );
+};
+
+export const SoulDoubleButton = () => {
+    const soulDoubleActive = useAdStore((state) => state.soulDoubleActive);
+    const { watchAd, getCooldownRemaining, activateSoulDouble } = useAdStore.getState();
+
+    const [cooldown, setCooldown] = useState(0);
+
+    useEffect(() => {
+        const update = () => setCooldown(getCooldownRemaining('soulDouble'));
+        update();
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [soulDoubleActive]);
+
+    if (soulDoubleActive) {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                background: 'linear-gradient(45deg, #8e44ad, #9b59b6)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                boxShadow: '0 0 15px rgba(142, 68, 173, 0.4)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                animation: 'pulse 2s infinite'
+            }}>
+                <Ghost size={16} fill="currentColor" />
+                2x Souls Ready!
+            </div>
+        );
+    }
+
+    const isCooldown = cooldown > 0;
+    const formatTime = (ms) => `${Math.ceil(ms / 1000)}s`;
+
+    return (
+        <GameButton
+            onClick={() => {
+                AudioManager.playSFX('ui_click');
+                watchAd('soulDouble', activateSoulDouble);
+            }}
+            disabled={isCooldown}
+            style={{
+                padding: '0.5rem 1rem',
+                background: isCooldown ? 'rgba(0,0,0,0.5)' : '#8e44ad',
+                border: '1px solid rgba(255,255,255,0.2)',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                color: isCooldown ? '#bdc3c7' : 'white',
+                opacity: isCooldown ? 0.7 : 1
+            }}
+        >
+            {isCooldown ? (
+                <>⏳ {formatTime(cooldown)}</>
+            ) : (
+                <><Video size={16} /> Double Souls</>
+            )}
+        </GameButton>
+    );
+};

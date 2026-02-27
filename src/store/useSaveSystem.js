@@ -7,9 +7,19 @@ import useTutorialStore from './useTutorialStore';
 import useAdStore from './useAdStore';
 import useAchievementStore from './useAchievementStore';
 import useDailyRewardStore from './useDailyRewardStore';
+import useEventStore from './useEventStore';
 
 const SAVE_KEY = 'idlesndragons_save';
 const SAVE_INTERVAL = 30000; // 30 seconds
+const CURRENT_VERSION = 3;
+const MAX_OFFLINE_SECONDS = 86400; // 24 hours
+const MAX_OFFLINE_GOLD = 100000;
+
+function sanitizeNumber(val, fallback = 0, min = 0) {
+    const n = Number(val);
+    if (isNaN(n) || !isFinite(n)) return fallback;
+    return Math.max(min, n);
+}
 
 class SaveSystem {
     constructor() {
@@ -47,7 +57,7 @@ class SaveSystem {
         if (this._hardResetting) return;
         try {
             const data = {
-                version: 1,
+                version: CURRENT_VERSION,
                 timestamp: Date.now(),
                 meta: {
                     souls: useMetaStore.getState().souls,
@@ -56,6 +66,9 @@ class SaveSystem {
                     highestZone: useMetaStore.getState().highestZone,
                     totalKillsAllTime: useMetaStore.getState().totalKillsAllTime,
                     totalPlaytimeSeconds: useMetaStore.getState().totalPlaytimeSeconds,
+                    ascensionTier: useMetaStore.getState().ascensionTier,
+                    ascensionUnlocked: useMetaStore.getState().ascensionUnlocked,
+                    skillTree: useMetaStore.getState().skillTree,
                 },
                 party: {
                     members: usePartyStore.getState().members,
@@ -79,6 +92,7 @@ class SaveSystem {
                 ads: useAdStore.getState().getSaveData(),
                 achievements: useAchievementStore.getState().getSaveData(),
                 dailyRewards: useDailyRewardStore.getState().getSaveData(),
+                events: useEventStore.getState().getSaveData(),
             };
 
             localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -88,96 +102,148 @@ class SaveSystem {
         }
     }
 
+    migrate(data) {
+        if (!data || !data.version) return null;
+
+        // v1 -> v2: add new ad types (speed boost, soul double)
+        if (data.version < 2) {
+            data.ads = data.ads || {};
+            data.ads.lastAdWatchTime = {
+                gold: 0, reroll: 0, revive: 0, souls: 0, speed: 0, soulDouble: 0,
+                ...(data.ads.lastAdWatchTime || {})
+            };
+            data.ads.speedBoostActive = false;
+            data.ads.speedBoostEndTime = null;
+            data.ads.soulDoubleActive = false;
+            data.version = 2;
+        }
+
+        // v2 -> v3: ascension, skill tree, events
+        if (data.version < 3) {
+            data.meta = data.meta || {};
+            data.meta.ascensionTier = data.meta.ascensionTier || 0;
+            data.meta.ascensionUnlocked = data.meta.ascensionUnlocked || false;
+            data.meta.skillTree = data.meta.skillTree || {};
+            data.events = data.events || { eventsCompleted: 0, lastEventType: null, activeBuffs: { atkMult: 1, defMult: 1 } };
+            data.version = 3;
+        }
+
+        return data;
+    }
+
     load() {
         try {
             const raw = localStorage.getItem(SAVE_KEY);
             if (!raw) return null;
 
-            const data = JSON.parse(raw);
-            if (!data || data.version !== 1) return null;
+            let data = JSON.parse(raw);
+            if (!data || !data.version || data.version < 1) return null;
+
+            // Run migrations
+            data = this.migrate(data);
+            if (!data) return null;
 
             // Restore Meta
-            if (data.meta) {
-                useMetaStore.setState({
-                    souls: data.meta.souls || 0,
-                    generation: data.meta.generation || 1,
-                    upgrades: { ...useMetaStore.getState().upgrades, ...data.meta.upgrades },
-                    highestZone: data.meta.highestZone || 1,
-                    totalKillsAllTime: data.meta.totalKillsAllTime || 0,
-                    totalPlaytimeSeconds: data.meta.totalPlaytimeSeconds || 0,
-                });
-            }
+            try {
+                if (data.meta) {
+                    useMetaStore.setState({
+                        souls: sanitizeNumber(data.meta.souls, 0),
+                        generation: sanitizeNumber(data.meta.generation, 1, 1),
+                        upgrades: { ...useMetaStore.getState().upgrades, ...data.meta.upgrades },
+                        highestZone: sanitizeNumber(data.meta.highestZone, 1, 1),
+                        totalKillsAllTime: sanitizeNumber(data.meta.totalKillsAllTime, 0),
+                        totalPlaytimeSeconds: sanitizeNumber(data.meta.totalPlaytimeSeconds, 0),
+                        ascensionTier: sanitizeNumber(data.meta.ascensionTier, 0),
+                        ascensionUnlocked: !!data.meta.ascensionUnlocked,
+                        skillTree: data.meta.skillTree || {},
+                    });
+                }
+            } catch (e) { console.warn('Failed to restore meta:', e); }
 
             // Restore Party
-            if (data.party) {
-                // Use saved grid size, or compute from meta upgrades if missing
-                const gridUpgrade = data.meta?.upgrades?.gridSize || 0;
-                const computedSize = 3 + gridUpgrade;
-                const savedGrid = data.party.gridSize || { width: computedSize, height: computedSize };
+            try {
+                if (data.party) {
+                    const gridUpgrade = data.meta?.upgrades?.gridSize || 0;
+                    const computedSize = 3 + gridUpgrade;
+                    const savedGrid = data.party.gridSize || { width: computedSize, height: computedSize };
 
-                usePartyStore.setState({
-                    members: data.party.members || [],
-                    gridSize: savedGrid,
-                });
-            }
+                    usePartyStore.setState({
+                        members: data.party.members || [],
+                        gridSize: savedGrid,
+                    });
+                }
+            } catch (e) { console.warn('Failed to restore party:', e); }
 
             // Restore Resources
-            if (data.resources) {
-                useResourceStore.setState({
-                    gold: data.resources.gold || 0,
-                    xp: data.resources.xp || 0,
-                    materials: data.resources.materials || {},
-                });
-            }
+            try {
+                if (data.resources) {
+                    useResourceStore.setState({
+                        gold: sanitizeNumber(data.resources.gold, 0),
+                        xp: sanitizeNumber(data.resources.xp, 0),
+                        materials: data.resources.materials || {},
+                    });
+                }
+            } catch (e) { console.warn('Failed to restore resources:', e); }
 
             // Restore Inventory
-            if (data.inventory) {
-                useInventoryStore.setState({
-                    items: data.inventory.items || [],
-                });
-            }
+            try {
+                if (data.inventory) {
+                    useInventoryStore.setState({
+                        items: data.inventory.items || [],
+                    });
+                }
+            } catch (e) { console.warn('Failed to restore inventory:', e); }
 
-            // Restore Game State (always start in LOBBY on reload)
-            if (data.game) {
-                useGameStore.setState({
-                    zone: data.game.zone || 1,
-                    wave: data.game.wave || 1,
-                    totalKills: data.game.totalKills || 0,
-                    gameState: 'MENU',
-                    isRunning: false,
-                });
-            }
+            // Restore Game State (always start in MENU on reload)
+            try {
+                if (data.game) {
+                    useGameStore.setState({
+                        zone: sanitizeNumber(data.game.zone, 1, 1),
+                        wave: sanitizeNumber(data.game.wave, 1, 1),
+                        totalKills: sanitizeNumber(data.game.totalKills, 0),
+                        gameState: 'MENU',
+                        isRunning: false,
+                    });
+                }
+            } catch (e) { console.warn('Failed to restore game state:', e); }
 
             // Calculate offline earnings
             if (data.timestamp) {
-                const elapsed = (Date.now() - data.timestamp) / 1000; // seconds
-                if (elapsed > 60) { // At least 1 minute away
+                const elapsed = (Date.now() - data.timestamp) / 1000;
+                if (elapsed > 60) {
                     this.applyOfflineEarnings(elapsed, data);
                 }
             }
 
             // Restore Tutorial state
-            if (data.tutorial) {
-                useTutorialStore.getState().loadSaveData(data.tutorial);
-            }
+            try {
+                if (data.tutorial) useTutorialStore.getState().loadSaveData(data.tutorial);
+            } catch (e) { console.warn('Failed to restore tutorial:', e); }
 
             // Restore Ad/Boost state
-            if (data.ads) {
-                useAdStore.getState().loadSaveData(data.ads);
-            }
+            try {
+                if (data.ads) useAdStore.getState().loadSaveData(data.ads);
+            } catch (e) { console.warn('Failed to restore ads:', e); }
 
             // Restore Achievements
-            if (data.achievements) {
-                useAchievementStore.getState().loadSaveData(data.achievements);
-            }
+            try {
+                if (data.achievements) useAchievementStore.getState().loadSaveData(data.achievements);
+            } catch (e) { console.warn('Failed to restore achievements:', e); }
 
             // Restore Daily Rewards
-            if (data.dailyRewards) {
-                useDailyRewardStore.getState().loadSaveData(data.dailyRewards);
-            }
+            try {
+                if (data.dailyRewards) useDailyRewardStore.getState().loadSaveData(data.dailyRewards);
+            } catch (e) { console.warn('Failed to restore daily rewards:', e); }
+
+            // Restore Events
+            try {
+                if (data.events) useEventStore.getState().loadSaveData(data.events);
+            } catch (e) { console.warn('Failed to restore events:', e); }
 
             // Check daily reward availability
-            useDailyRewardStore.getState().onGameLoad();
+            try {
+                useDailyRewardStore.getState().onGameLoad();
+            } catch (e) { console.warn('Failed to check daily rewards:', e); }
 
             return data;
 
@@ -188,22 +254,20 @@ class SaveSystem {
     }
 
     applyOfflineEarnings(elapsedSeconds, data) {
-        // Simple offline earnings: gold based on zone
-        const zone = data.game?.zone || 1;
-        const partySize = data.party?.members?.length || 0;
+        const cappedElapsed = Math.min(elapsedSeconds, MAX_OFFLINE_SECONDS);
+        const zone = sanitizeNumber(data.game?.zone, 1, 1);
+        const partySize = sanitizeNumber(data.party?.members?.length, 0);
 
         if (partySize === 0) return;
 
-        // Offline rate: zone * 2 gold per second * 50% efficiency
         const goldPerSecond = zone * 2 * partySize * 0.5;
-        const offlineGold = Math.floor(goldPerSecond * elapsedSeconds);
+        const offlineGold = Math.min(Math.floor(goldPerSecond * cappedElapsed), MAX_OFFLINE_GOLD);
 
         if (offlineGold > 0) {
             useResourceStore.getState().addGold(offlineGold);
 
-            // Store offline summary for display
             this.offlineSummary = {
-                elapsed: elapsedSeconds,
+                elapsed: cappedElapsed,
                 goldEarned: offlineGold,
             };
         }
@@ -226,13 +290,9 @@ class SaveSystem {
             isDanger: true,
             confirmText: 'NUKE IT',
             onConfirm: () => {
-                // Prevent any saves from firing during unload
                 this._hardResetting = true;
-                // Stop interval and remove beforeunload handler
                 this.stop();
-                // Clear saved data
                 this.clearSave();
-                // Reload the page — save can't fire because we removed the handler
                 window.location.reload();
             }
         });

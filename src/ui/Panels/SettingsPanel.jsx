@@ -2,7 +2,8 @@ import React from 'react';
 import useGameStore from '../../store/useGameStore';
 import useSettingsStore from '../../store/useSettingsStore';
 import SaveSystem from '../../store/useSaveSystem';
-import { X, Volume2, Volume1, VolumeX, RefreshCw, Trash2, Crosshair } from 'lucide-react';
+import { X, Volume2, Volume1, VolumeX, RefreshCw, Trash2, Crosshair, BookOpen } from 'lucide-react';
+import useTutorialStore from '../../store/useTutorialStore';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 
@@ -104,6 +105,28 @@ const SettingsPanel = () => {
                         }}
                     >
                         {showDamageNumbers ? 'ON' : 'OFF'}
+                    </GameButton>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '0.8rem', borderRadius: '8px', marginTop: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                        <BookOpen size={20} color="#3498db" />
+                        <span>Tutorial</span>
+                    </div>
+                    <GameButton
+                        onClick={() => {
+                            useTutorialStore.getState().restartTutorial();
+                            closePanel();
+                        }}
+                        style={{
+                            padding: '0.4rem 0.8rem',
+                            background: 'var(--accent-info)',
+                            border: 'none',
+                            fontSize: '0.8rem',
+                            color: 'white',
+                        }}
+                    >
+                        Restart
                     </GameButton>
                 </div>
             </div>

@@ -1,14 +1,16 @@
 import React from 'react';
 import useResourceStore from '../../store/useResourceStore';
 import useGameStore from '../../store/useGameStore';
-import { Coins, Swords, Pause, Play, Zap, FastForward, Skull, TrendingUp, LogOut, Trophy } from 'lucide-react';
+import useMetaStore from '../../store/useMetaStore';
+import { Coins, Swords, Pause, Play, Zap, FastForward, Skull, TrendingUp, LogOut, Trophy, BarChart2, Crown } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
-import { GoldBoostButton } from '../components/AdButtons';
+import { GoldBoostButton, SpeedBoostButton } from '../components/AdButtons';
 
 const HUD = () => {
     const { gold, xp } = useResourceStore();
     const { isRunning, zone, wave, wavesPerZone, totalKills, togglePause, timeMultiplier, setTimeMultiplier } = useGameStore();
+    const ascensionTier = useMetaStore(state => state.ascensionTier);
 
     const speedOptions = [1, 2, 3];
 
@@ -45,6 +47,7 @@ const HUD = () => {
                         Kills <span style={{ color: 'white' }}>{totalKills}</span>
                     </div>
                     <GoldBoostButton />
+                    <SpeedBoostButton />
                 </div>
             </div>
 
@@ -60,7 +63,10 @@ const HUD = () => {
                 borderTopLeftRadius: 0,
                 borderTopRightRadius: 0
             }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.2rem' }}>Zone {zone}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '0.2rem' }}>
+                    Zone {zone}
+                    {ascensionTier > 0 && <span style={{ marginLeft: '0.5rem', color: '#f1c40f', fontWeight: 'bold' }}>Asc. {ascensionTier}</span>}
+                </div>
                 <div className="font-display" style={{ fontSize: '1.4rem', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>Wave {wave}/{wavesPerZone}</div>
                 {wave === wavesPerZone && (
                     <div style={{
@@ -137,7 +143,39 @@ const HUD = () => {
                     ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <GameButton
+                        onClick={() => useGameStore.getState().openPanel('stats')}
+                        title="Statistics"
+                        style={{
+                            padding: '0.5rem',
+                            background: '#FFFFFF',
+                            border: '3px solid #000000',
+                            width: '44px',
+                            height: '44px',
+                            justifyContent: 'center',
+                            boxShadow: '0 6px 12px rgba(0,0,0,0.6)',
+                            color: '#3498db'
+                        }}
+                    >
+                        <BarChart2 size={20} strokeWidth={3} />
+                    </GameButton>
+                    <GameButton
+                        onClick={() => useGameStore.getState().openPanel('leaderboard')}
+                        title="Leaderboard"
+                        style={{
+                            padding: '0.5rem',
+                            background: '#FFFFFF',
+                            border: '3px solid #000000',
+                            width: '44px',
+                            height: '44px',
+                            justifyContent: 'center',
+                            boxShadow: '0 6px 12px rgba(0,0,0,0.6)',
+                            color: '#e67e22'
+                        }}
+                    >
+                        <Crown size={20} strokeWidth={3} />
+                    </GameButton>
                     <GameButton
                         onClick={() => useGameStore.getState().openPanel('achievements')}
                         title="Achievements"

@@ -27,6 +27,9 @@ import SettingsPanel from './Panels/SettingsPanel';
 import CreditsPanel from './Panels/CreditsPanel';
 import AchievementsPanel from './Panels/AchievementsPanel';
 import CraftingPanel from './Panels/CraftingPanel';
+import StatsPanel from './Panels/StatsPanel';
+import LeaderboardPanel from './Panels/LeaderboardPanel';
+import EventPanel from './Panels/EventPanel';
 import PauseOverlay from './Panels/PauseOverlay';
 import ConfirmDialog from './components/ConfirmDialog';
 import CrazyGamesSDK from '../platform/CrazyGames';
@@ -65,11 +68,22 @@ const App = () => {
             }
         };
 
+        const handleVisibilityChange = () => {
+            if (document.hidden) {
+                const { gameState, togglePause } = useGameStore.getState();
+                if (gameState === 'RUNNING') {
+                    togglePause();
+                }
+            }
+        };
+
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('blur', handleBlur);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('blur', handleBlur);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
     }, []);
 
@@ -196,6 +210,9 @@ const App = () => {
                     <HelpPanel />
                     <AchievementsPanel />
                     <CraftingPanel />
+                    <StatsPanel />
+                    <LeaderboardPanel />
+                    <EventPanel />
                     {gameState === 'PAUSED' && <PauseOverlay />}
                 </>
             ) : gameState === 'LOBBY' ? (
@@ -208,6 +225,8 @@ const App = () => {
                     <CreditsPanel />
                     <HelpPanel />
                     <AchievementsPanel />
+                    <StatsPanel />
+                    <LeaderboardPanel />
                 </>
             ) : gameState === 'GAMEOVER' ? (
                 <ResultsPanel />

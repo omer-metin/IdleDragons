@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import useInventoryStore from './useInventoryStore';
 import useAchievementStore from './useAchievementStore';
+import useMetaStore from './useMetaStore';
 
 const RARITY_WEIGHTS = [
     { rarity: 'Common', weight: 55, color: '#95a5a6', statMult: 1.0 },
@@ -30,21 +31,29 @@ const PREFIXES = {
 
 const SUFFIXES = ['of Might', 'of Warding', 'of Vitality', 'of the Bear', 'of the Eagle', 'of the Serpent'];
 
-function rollRarity() {
-    const totalWeight = RARITY_WEIGHTS.reduce((sum, r) => sum + r.weight, 0);
+const ELITE_RARITY_WEIGHTS = [
+    { rarity: 'Rare', weight: 60, color: '#2980b9', statMult: 2.5 },
+    { rarity: 'Epic', weight: 25, color: '#8e44ad', statMult: 4.0 },
+    { rarity: 'Legendary', weight: 15, color: '#ff6600', statMult: 6.0 },
+];
+
+function rollRarity(weights = RARITY_WEIGHTS) {
+    const totalWeight = weights.reduce((sum, r) => sum + r.weight, 0);
     let roll = Math.random() * totalWeight;
-    for (const r of RARITY_WEIGHTS) {
+    for (const r of weights) {
         roll -= r.weight;
         if (roll <= 0) return r;
     }
-    return RARITY_WEIGHTS[0];
+    return weights[0];
 }
 
 const useLootStore = create((set, get) => ({
     dropChance: 0.5, // 50% chance for better feedback loops
 
     rollLoot: (zone) => {
-        if (Math.random() > get().dropChance) return null;
+        // Lucky Loot skill tree bonus
+        const luckyBonus = useMetaStore.getState().getSkillTreeEffect('luckyLoot');
+        if (Math.random() > get().dropChance + luckyBonus) return null;
 
         // Check inventory cap before generating
         if (useInventoryStore.getState().isFull()) return null;
@@ -79,6 +88,33 @@ const useLootStore = create((set, get) => ({
         // Track for achievements
         useAchievementStore.getState().trackItem(rarity.rarity);
 
+        return item;
+    },
+
+    // Elite enemies always drop Rare+ loot
+    rollEliteLoot: (zone) => {
+        if (useInventoryStore.getState().isFull()) return null;
+
+        const rarity = rollRarity(ELITE_RARITY_WEIGHTS);
+        const itemType = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
+        const prefixes = PREFIXES[rarity.rarity];
+        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const suffix = SUFFIXES[Math.floor(Math.random() * SUFFIXES.length)];
+        const statValue = Math.floor(itemType.base * rarity.statMult * (1 + zone * 0.25));
+
+        const item = {
+            id: `elite_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name: `${prefix} ${itemType.name} ${suffix}`,
+            type: itemType.type,
+            rarity: rarity.rarity,
+            rarityColor: rarity.color,
+            stats: { [itemType.stat]: statValue },
+            zone: zone,
+        };
+
+        const added = useInventoryStore.getState().addItem(item);
+        if (!added) return null;
+        useAchievementStore.getState().trackItem(rarity.rarity);
         return item;
     },
 }));

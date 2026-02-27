@@ -1,13 +1,15 @@
 import React from 'react';
 import useMetaStore from '../../store/useMetaStore';
 import useGameStore from '../../store/useGameStore';
-import { Skull, X } from 'lucide-react';
+import { Skull, X, Crown } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
+import { SoulDoubleButton } from '../components/AdButtons';
 
 const TPKPanel = () => {
     const { activePanel, closePanel } = useGameStore();
-    const { souls, getPendingSouls, triggerTPK, generation } = useMetaStore();
+    const { souls, getPendingSouls, triggerTPK, generation, ascensionTier, ascensionUnlocked, ascend } = useMetaStore();
+    const zone = useGameStore(state => state.zone);
 
     React.useEffect(() => {
         if (activePanel === 'tpk') { // Changed from 'ascend'
@@ -19,17 +21,32 @@ const TPKPanel = () => {
 
     const pendingSouls = getPendingSouls();
 
+    const canAscend = ascensionUnlocked && zone >= 20;
+
     const handleTPK = () => {
         useGameStore.getState().showConfirm({
             title: 'Confirm TPK?',
             message: `You are about to reset all progress for ${pendingSouls} Souls. This cannot be undone.`,
             isDanger: true,
-            confirmText: 'ASCEND',
+            confirmText: 'DO IT',
             onConfirm: () => {
-                // Trigger TPK (Full Reset)
                 triggerTPK();
                 closePanel();
-                AudioManager.playSFX('ui_equip'); // Heavy sound
+                AudioManager.playSFX('ui_equip');
+            }
+        });
+    };
+
+    const handleAscend = () => {
+        useGameStore.getState().showConfirm({
+            title: 'Ascend to a Higher Plane?',
+            message: `Ascend to Tier ${ascensionTier + 1}. Enemies will be ${Math.round(Math.pow(1.5, ascensionTier + 1) * 100)}% stronger, but you'll earn ${50 * (ascensionTier + 1)}% more Souls.`,
+            isDanger: false,
+            confirmText: 'ASCEND',
+            onConfirm: () => {
+                ascend();
+                closePanel();
+                AudioManager.playSFX('ui_equip');
             }
         });
     };
@@ -81,6 +98,9 @@ const TPKPanel = () => {
                         <div style={{ fontSize: '0.8rem', color: '#7f8c8d' }}>Current: {souls}</div>
                         <div style={{ fontSize: '0.8rem', color: '#2ecc71' }}>Next: {souls + pendingSouls}</div>
                     </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+                        <SoulDoubleButton />
+                    </div>
                 </div>
                 <p style={{ fontSize: '0.8rem', color: '#bdc3c7', fontStyle: 'italic' }}>
                     "Every end is a new beginning... for the next party."<br />
@@ -88,37 +108,63 @@ const TPKPanel = () => {
                 </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                <GameButton
-                    onClick={closePanel}
-                    style={{
-                        padding: '1rem 2rem',
-                        background: 'transparent',
-                        border: '1px solid var(--text-dim)',
-                        color: 'var(--text-dim)'
-                    }}
-                >
-                    CANCEL
-                </GameButton>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                    <GameButton
+                        onClick={closePanel}
+                        style={{
+                            padding: '1rem 2rem',
+                            background: 'transparent',
+                            border: '1px solid var(--text-dim)',
+                            color: 'var(--text-dim)'
+                        }}
+                    >
+                        CANCEL
+                    </GameButton>
 
-                <GameButton
-                    onClick={handleTPK}
-                    style={{
-                        padding: '1.2rem 3rem',
-                        background: 'var(--accent-danger)',
-                        border: 'none',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '1.2rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.8rem',
-                        boxShadow: '0 0 30px rgba(192, 57, 43, 0.4)'
-                    }}
-                >
-                    <Skull size={24} />
-                    TPK the Party
-                </GameButton>
+                    <GameButton
+                        onClick={handleTPK}
+                        style={{
+                            padding: '1.2rem 3rem',
+                            background: 'var(--accent-danger)',
+                            border: 'none',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '1.2rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.8rem',
+                            boxShadow: '0 0 30px rgba(192, 57, 43, 0.4)'
+                        }}
+                    >
+                        <Skull size={24} />
+                        TPK the Party
+                    </GameButton>
+                </div>
+
+                {canAscend && (
+                    <GameButton
+                        onClick={handleAscend}
+                        style={{
+                            padding: '1rem 3rem',
+                            background: 'linear-gradient(135deg, #f1c40f, #e67e22)',
+                            border: '2px solid #f39c12',
+                            color: '#1a1a2e',
+                            fontWeight: 'bold',
+                            fontSize: '1.1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.8rem',
+                            boxShadow: '0 0 40px rgba(241, 196, 15, 0.5)',
+                            animation: 'pulse 2s infinite',
+                            width: '100%',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <Crown size={22} />
+                        ASCEND (Tier {ascensionTier + 1})
+                    </GameButton>
+                )}
             </div>
         </div>
     );

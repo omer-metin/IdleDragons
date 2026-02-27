@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import useToastStore from './useToastStore';
 import AudioManager from '../audio/AudioManager';
+import CrazyGamesSDK from '../platform/CrazyGames';
 
 /**
  * Achievement definitions. 20 achievements across 4 categories.
@@ -76,6 +77,8 @@ const useAchievementStore = create((set, get) => ({
                 }
                 return { unlocked: updated };
             });
+
+            CrazyGamesSDK.happytime();
 
             // Toast + audio for each
             for (const ach of newlyUnlocked) {

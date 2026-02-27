@@ -5,7 +5,39 @@ import usePartyStore from './usePartyStore';
 import useRecruitmentStore from './useRecruitmentStore';
 import useInventoryStore from './useInventoryStore';
 import useAchievementStore from './useAchievementStore';
+import useAdStore from './useAdStore';
+import useEventStore from './useEventStore';
 import EncounterManager from '../game/systems/EncounterManager';
+import CrazyGamesSDK from '../platform/CrazyGames';
+
+// ── Skill Tree (Phase 5) ──
+const SKILL_TREE = {
+    autoEquip: {
+        name: 'Auto-Equip Best',
+        description: 'Automatically equip highest-stat gear on each hero.',
+        baseCost: 15, maxLevel: 1, tier: 1, prereqs: [],
+    },
+    luckyLoot: {
+        name: 'Lucky Loot',
+        description: '+10% loot drop chance per level.',
+        baseCost: 10, costMult: 2, maxLevel: 5, tier: 1, prereqs: [],
+    },
+    goldInterest: {
+        name: 'Gold Interest',
+        description: 'Earn 2% interest on gold every zone clear, per level.',
+        baseCost: 20, costMult: 2.5, maxLevel: 3, tier: 1, prereqs: [],
+    },
+    partySizePlus: {
+        name: 'Party Size +1',
+        description: 'Add one extra row to the formation grid.',
+        baseCost: 50, maxLevel: 1, tier: 2, prereqs: ['autoEquip', 'luckyLoot'],
+    },
+    startingSkills: {
+        name: 'Starting Skills',
+        description: 'Heroes start with skills ready at zone 1.',
+        baseCost: 40, maxLevel: 1, tier: 2, prereqs: ['luckyLoot', 'goldInterest'],
+    },
+};
 
 const UPGRADES = {
     gridSize: {
@@ -63,6 +95,13 @@ const useMetaStore = create((set, get) => ({
         soulGain: 0,
         startingZone: 0,
     },
+
+    // Ascension (Phase 5)
+    ascensionTier: 0,
+    ascensionUnlocked: false,
+
+    // Skill Tree (Phase 5)
+    skillTree: {},
 
     // Statistics
     highestZone: 1,
@@ -124,16 +163,91 @@ const useMetaStore = create((set, get) => ({
         return false;
     },
 
+    // ── Ascension ──
+    getAscensionDifficultyMult: () => Math.pow(1.5, get().ascensionTier),
+    getAscensionSoulMult: () => 1 + get().ascensionTier * 0.5,
+
+    ascend: () => {
+        const { zone } = useGameStore.getState();
+        if (zone < 20 || !get().ascensionUnlocked) return;
+        set((s) => ({ ascensionTier: s.ascensionTier + 1 }));
+        get().triggerTPK();
+    },
+
+    // ── Skill Tree ──
+    getSkillTreeNodeCost: (id) => {
+        const node = SKILL_TREE[id];
+        if (!node) return Infinity;
+        const level = get().skillTree[id] || 0;
+        if (level >= node.maxLevel) return Infinity;
+        return Math.floor(node.baseCost * Math.pow(node.costMult || 1, level));
+    },
+
+    buySkillTreeNode: (id) => {
+        const node = SKILL_TREE[id];
+        if (!node) return false;
+        const { souls, skillTree } = get();
+        const level = skillTree[id] || 0;
+        if (level >= node.maxLevel) return false;
+        // Check prereqs
+        for (const prereq of node.prereqs) {
+            if ((skillTree[prereq] || 0) < 1) return false;
+        }
+        const cost = get().getSkillTreeNodeCost(id);
+        if (souls < cost) return false;
+        set((s) => ({
+            souls: s.souls - cost,
+            skillTree: { ...s.skillTree, [id]: (s.skillTree[id] || 0) + 1 },
+        }));
+        // Party Size +1: apply immediately
+        if (id === 'partySizePlus') {
+            const currentGrid = usePartyStore.getState().gridSize;
+            usePartyStore.setState({ gridSize: { width: currentGrid.width, height: currentGrid.height + 1 } });
+        }
+        return true;
+    },
+
+    hasSkillTreeNode: (id) => (get().skillTree[id] || 0) >= 1,
+
+    getSkillTreeEffect: (id) => {
+        const node = SKILL_TREE[id];
+        if (!node) return 0;
+        const level = get().skillTree[id] || 0;
+        if (id === 'luckyLoot') return level * 0.10;
+        if (id === 'goldInterest') return level * 0.02;
+        return level;
+    },
+
     triggerTPK: () => {
         // Calculate souls based on zone reached (zone^2 * 2)
         const { zone, totalKills } = useGameStore.getState();
         const { upgrades } = get();
         const soulMult = 1 + (upgrades.soulGain || 0) * 0.2;
         const baseSouls = Math.floor(zone * zone * 2);
-        const pendingSouls = Math.floor(baseSouls * soulMult);
+        let pendingSouls = Math.floor(baseSouls * soulMult);
+
+        // Double souls if ad boost active
+        const adStore = useAdStore.getState();
+        if (adStore.soulDoubleActive) {
+            pendingSouls *= 2;
+            useAdStore.setState({ soulDoubleActive: false });
+        }
+
+        // Ascension soul bonus
+        const ascSoulMult = get().getAscensionSoulMult();
+        pendingSouls = Math.floor(pendingSouls * ascSoulMult);
 
         // Update stats before reset
         get().updateStats(zone, totalKills);
+
+        // Unlock ascension if reached Zone 20+
+        if (Math.max(get().highestZone, zone) >= 20 && !get().ascensionUnlocked) {
+            set({ ascensionUnlocked: true });
+        }
+
+        // Submit highest zone to leaderboard
+        const newHighest = Math.max(get().highestZone, zone);
+        CrazyGamesSDK.submitScore(newHighest);
 
         set((state) => ({
             souls: state.souls + pendingSouls,
@@ -155,6 +269,9 @@ const useMetaStore = create((set, get) => ({
         // Clear inventory
         useInventoryStore.getState().reset();
 
+        // Clear event buffs
+        useEventStore.getState().reset();
+
         // Generate fresh recruitment candidates
         useRecruitmentStore.getState().generateCandidates();
 
@@ -165,9 +282,10 @@ const useMetaStore = create((set, get) => ({
         const startGold = currentUpgrades.startGold * 100;
         useResourceStore.setState({ gold: startGold });
 
-        // Grid Size
+        // Grid Size (+ skill tree bonus)
         const size = 3 + currentUpgrades.gridSize;
-        usePartyStore.setState({ gridSize: { width: size, height: size } });
+        const extraRows = get().skillTree.partySizePlus || 0;
+        usePartyStore.setState({ gridSize: { width: size, height: size + extraRows } });
 
         // Starting Zone
         if (currentUpgrades.startingZone > 0) {
@@ -182,9 +300,14 @@ const useMetaStore = create((set, get) => ({
         const { zone } = useGameStore.getState();
         const { upgrades } = get();
         const soulMult = 1 + (upgrades.soulGain || 0) * 0.2;
-        return Math.floor(zone * zone * 2 * soulMult);
+        const ascMult = get().getAscensionSoulMult();
+        let souls = Math.floor(zone * zone * 2 * soulMult * ascMult);
+        if (useAdStore.getState().soulDoubleActive) {
+            souls *= 2;
+        }
+        return souls;
     },
 }));
 
 export default useMetaStore;
-export { UPGRADES };
+export { UPGRADES, SKILL_TREE };

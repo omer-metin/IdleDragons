@@ -14,6 +14,12 @@ export class Enemy extends PIXI.Container {
         this.atk = data.atk || 5;
         this.def = data.def || 0;
         this.isBoss = data.isBoss || false;
+        this.isElite = data.isElite || false;
+        this.affix = data.affix || null;
+
+        // Affix state
+        this.shieldTimer = this.affix === 'shielded' ? 300 : 0; // 5s at 60fps
+        this.berserkMult = 1;
 
         // Zone determination (fallback to 1)
         this.zone = data.zone || 1;
@@ -250,6 +256,34 @@ export class Enemy extends PIXI.Container {
         this.hpBarFill.y = this.hpBarBg.y;
         this.bodyContainer.addChild(this.hpBarFill);
         this.updateHpBar();
+
+        // Elite glow effect
+        if (this.isElite) {
+            this.eliteGlow = new PIXI.Graphics();
+            const glowColor = this.affix === 'vampiric' ? 0xff3333 : this.affix === 'shielded' ? 0x3399ff : 0xff9900;
+            this.eliteGlow.lineStyle(2, glowColor, 0.6);
+            const r = (this.bodyGfx?.width / 2 || 20) * 1.8;
+            this.eliteGlow.drawCircle(0, -h / 2, r);
+            this.bodyContainer.addChildAt(this.eliteGlow, 0);
+
+            // Elite name tag
+            if (!this.isBoss) {
+                const nameStyle = new PIXI.TextStyle({
+                    fontFamily: 'MedievalSharp, serif',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    fill: glowColor,
+                    dropShadow: true,
+                    dropShadowColor: '#000000',
+                    dropShadowBlur: 3,
+                    dropShadowDistance: 1,
+                });
+                const tag = new PIXI.Text(this.data.name || 'Elite', nameStyle);
+                tag.anchor.set(0.5, 1);
+                tag.y = -h - 8;
+                this.bodyContainer.addChild(tag);
+            }
+        }
     }
 
     updateHpBar() {
@@ -315,6 +349,20 @@ export class Enemy extends PIXI.Container {
                 this.eyesContainer.visible = false;
                 this.isBlinking = true;
                 this.blinkTimer = 5 + Math.random() * 5; // Blink duration (frames)
+            }
+        }
+
+        // Elite affix updates
+        if (this.isElite) {
+            if (this.affix === 'shielded' && this.shieldTimer > 0) {
+                this.shieldTimer -= delta;
+            }
+            if (this.affix === 'berserker') {
+                this.berserkMult = 1 + (1 - this.hp / this.maxHp);
+            }
+            // Pulsing glow
+            if (this.eliteGlow) {
+                this.eliteGlow.alpha = 0.4 + Math.sin(time * 0.005) * 0.3;
             }
         }
 

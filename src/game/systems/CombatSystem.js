@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import usePartyStore from '../../store/usePartyStore';
+import useEventStore from '../../store/useEventStore';
 import AudioManager from '../../audio/AudioManager';
 import ParticleSystem from './ParticleSystem';
 
@@ -55,10 +56,28 @@ class CombatSystem {
         if (!target || target.hp <= 0) return;
 
         const defense = target.def || 0;
-        const finalDmg = Math.max(1, Math.floor(amount - defense * 0.5));
+        // Event buff: ATK multiplier from shrine
+        const { atkMult } = useEventStore.getState().activeBuffs;
+        let finalDmg = Math.max(1, Math.floor((amount * atkMult) - defense * 0.5));
+
+        // Critical hit: 10% chance, 2x damage
+        const isCrit = Math.random() < 0.10;
+        if (isCrit) {
+            finalDmg = Math.floor(finalDmg * 2);
+        }
+
+        // Elite affix: Shielded (50% DR while shield active)
+        if (target.isElite && target.affix === 'shielded' && target.shieldTimer > 0) {
+            finalDmg = Math.max(1, Math.floor(finalDmg * 0.5));
+        }
 
         target.takeDamage(finalDmg);
-        this.showDamageText(target, finalDmg, false);
+        this.showDamageText(target, finalDmg, false, isCrit);
+
+        if (isCrit) {
+            ParticleSystem.emitCrit(target.x, target.y - 20);
+            if (this.scene) this.scene.screenShake(4, 8);
+        }
 
         // SFX based on source class
         const cls = source.data?.class;
@@ -71,26 +90,45 @@ class CombatSystem {
     dealDamageToHero(source, target, amount) {
         if (!target || target.isDead) return;
 
-        const finalDmg = target.takeDamage(amount);
+        // Elite affix: Berserker (ATK scales with HP loss)
+        let dmg = amount;
+        if (source.isElite && source.affix === 'berserker') {
+            dmg = Math.floor(dmg * (source.berserkMult || 1));
+        }
+
+        // Event buff: DEF multiplier from shrine (reduces incoming damage)
+        const { defMult } = useEventStore.getState().activeBuffs;
+        if (defMult !== 1) {
+            dmg = Math.max(1, Math.floor(dmg / defMult));
+        }
+
+        const finalDmg = target.takeDamage(dmg);
         if (finalDmg > 0) {
             this.showDamageText(target, finalDmg, true);
             AudioManager.playSFX('hit_enemy_attack');
+
+            // Elite affix: Vampiric (heal 30% of damage dealt)
+            if (source.isElite && source.affix === 'vampiric' && source.hp > 0) {
+                const healAmt = Math.max(1, Math.floor(finalDmg * 0.3));
+                source.receiveHeal(healAmt);
+                this.showHealText(source, healAmt);
+            }
         }
     }
 
-    showDamageText(target, amount, isHeroDamage = false) {
+    showDamageText(target, amount, isHeroDamage = false, isCrit = false) {
         if (!this.scene) return;
 
         const style = new PIXI.TextStyle({
             fontFamily: 'Inter, sans-serif',
-            fontSize: isHeroDamage ? 16 : 20,
+            fontSize: isCrit ? 28 : (isHeroDamage ? 16 : 20),
             fontWeight: 'bold',
-            fill: isHeroDamage ? '#e74c3c' : (amount > 15 ? '#f1c40f' : '#ffffff'),
+            fill: isCrit ? '#ff6600' : (isHeroDamage ? '#e74c3c' : (amount > 15 ? '#f1c40f' : '#ffffff')),
             stroke: '#000000',
-            strokeThickness: 3,
+            strokeThickness: isCrit ? 4 : 3,
         });
 
-        const text = new PIXI.Text(`-${amount}`, style);
+        const text = new PIXI.Text(isCrit ? `CRIT! -${amount}` : `-${amount}`, style);
         text.x = target.x + (Math.random() - 0.5) * 20;
         text.y = target.y - 40;
         text.anchor.set(0.5);

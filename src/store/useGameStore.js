@@ -30,7 +30,7 @@ const useGameStore = create((set, get) => ({
         return {};
     }),
 
-    setTimeMultiplier: (multiplier) => set({ timeMultiplier: Math.min(multiplier, 3) }),
+    setTimeMultiplier: (multiplier) => set({ timeMultiplier: Math.min(multiplier, 5) }),
 
     incrementDistance: (amount) => set((state) => {
         if (state.gameState !== 'RUNNING') return {};

@@ -1,10 +1,47 @@
 import * as PIXI from 'pixi.js';
 
+const MAX_POOL_SIZE = 100;
+
 class ParticleSystem {
     constructor() {
         this.particles = [];
+        this.pool = []; // Recycled PIXI.Graphics sprites
         this.container = new PIXI.Container();
         this.container.zIndex = 1000; // High z-index to show above units
+    }
+
+    /** Get a sprite from pool or create new. */
+    _acquireSprite(color, shape) {
+        let sprite;
+        if (this.pool.length > 0) {
+            sprite = this.pool.pop();
+            sprite.clear();
+        } else {
+            sprite = new PIXI.Graphics();
+        }
+        sprite.beginFill(color);
+        if (shape === 'rect') {
+            sprite.drawRect(-2, -2, 4, 4);
+        } else {
+            sprite.drawCircle(0, 0, 3);
+        }
+        sprite.endFill();
+        sprite.alpha = 1;
+        sprite.scale.set(1);
+        sprite.rotation = 0;
+        sprite.visible = true;
+        return sprite;
+    }
+
+    /** Return a sprite to the pool. */
+    _releaseSprite(sprite) {
+        sprite.visible = false;
+        this.container.removeChild(sprite);
+        if (this.pool.length < MAX_POOL_SIZE) {
+            this.pool.push(sprite);
+        } else {
+            sprite.destroy();
+        }
     }
 
     bindContainer(parentContainer) {
@@ -18,7 +55,7 @@ class ParticleSystem {
             p.life -= delta;
 
             if (p.life <= 0) {
-                this.container.removeChild(p.sprite);
+                this._releaseSprite(p.sprite);
                 this.particles.splice(i, 1);
                 continue;
             }
@@ -70,14 +107,7 @@ class ParticleSystem {
 
             const velocity = (Math.random() * 0.5 + 0.5) * speed;
 
-            const sprite = new PIXI.Graphics();
-            sprite.beginFill(color);
-            if (config.shape === 'rect') {
-                sprite.drawRect(-2, -2, 4, 4);
-            } else {
-                sprite.drawCircle(0, 0, 3);
-            }
-            sprite.endFill();
+            const sprite = this._acquireSprite(color, config.shape);
 
             sprite.x = x;
             sprite.y = y;
@@ -158,6 +188,49 @@ class ParticleSystem {
             gravity: 0.2,
             friction: 0.01,
             shape: 'rect'
+        });
+    }
+
+    emitCrit(x, y) {
+        this.spawn({
+            x, y,
+            count: 12,
+            color: 0xff6600,
+            speed: 6,
+            life: 30,
+            scale: 1.8,
+            spread: Math.PI * 2,
+            gravity: 0,
+            friction: 0.08
+        });
+    }
+
+    emitHealAura(x, y) {
+        this.spawn({
+            x, y,
+            count: 8,
+            color: 0x2ecc71,
+            speed: 1.5,
+            angle: -Math.PI / 2,
+            spread: Math.PI / 3,
+            life: 45,
+            scale: 1,
+            gravity: -0.02,
+            friction: 0.02
+        });
+    }
+
+    emitBossSpawn(x, y) {
+        this.spawn({
+            x, y,
+            count: 25,
+            color: 0xe74c3c,
+            speed: 6,
+            life: 50,
+            scale: 2.5,
+            spread: Math.PI * 2,
+            gravity: 0.15,
+            friction: 0.04
         });
     }
 }

@@ -2,20 +2,27 @@ import { create } from 'zustand';
 import CrazyGamesSDK from '../platform/CrazyGames';
 import AudioManager from '../audio/AudioManager';
 import useToastStore from './useToastStore';
+import useGameStore from './useGameStore';
 
 const AD_COOLDOWN = 180000; // 3 minutes in ms
 const GOLD_BOOST_DURATION = 300000; // 5 minutes in ms
+const SPEED_BOOST_DURATION = 120000; // 2 minutes in ms
 
 const useAdStore = create((set, get) => ({
     goldBoostActive: false,
     goldBoostEndTime: null,
+    speedBoostActive: false,
+    speedBoostEndTime: null,
+    soulDoubleActive: false,
 
     // Cooldown tracking per ad type
     lastAdWatchTime: {
         gold: 0,
         reroll: 0,
         revive: 0,
-        souls: 0
+        souls: 0,
+        speed: 0,
+        soulDouble: 0
     },
 
     isAdPlaying: false,
@@ -26,8 +33,6 @@ const useAdStore = create((set, get) => ({
         const now = Date.now();
         const lastWatch = state.lastAdWatchTime[type] || 0;
 
-        // Check Cooldown (except for Revive? usually revive has limit but maybe no cooldown if you die fast? Let's generic cooldown)
-        // Revive might be special (limited per run). Reroll might be spammy so cooldown is good.
         if (now - lastWatch < AD_COOLDOWN) {
             const remaining = Math.ceil((AD_COOLDOWN - (now - lastWatch)) / 1000);
             useToastStore.getState().addToast({
@@ -78,10 +83,40 @@ const useAdStore = create((set, get) => ({
         });
     },
 
+    activateSpeedBoost: () => {
+        const now = Date.now();
+        set({
+            speedBoostActive: true,
+            speedBoostEndTime: now + SPEED_BOOST_DURATION
+        });
+
+        // Import lazily to avoid circular dependency
+        useGameStore.getState().setTimeMultiplier(5);
+
+        useToastStore.getState().addToast({
+            type: 'buff',
+            message: '5x Speed Boost Active!',
+            icon: '⚡',
+            color: '#e67e22'
+        });
+    },
+
+    activateSoulDouble: () => {
+        set({ soulDoubleActive: true });
+        useToastStore.getState().addToast({
+            type: 'buff',
+            message: 'Next TPK: 2x Souls!',
+            icon: '👻',
+            color: '#8e44ad'
+        });
+    },
+
     // Call this periodically or on load to update state
     checkBoosts: () => {
-        const { goldBoostActive, goldBoostEndTime } = get();
-        if (goldBoostActive && goldBoostEndTime && Date.now() > goldBoostEndTime) {
+        const { goldBoostActive, goldBoostEndTime, speedBoostActive, speedBoostEndTime } = get();
+        const now = Date.now();
+
+        if (goldBoostActive && goldBoostEndTime && now > goldBoostEndTime) {
             set({ goldBoostActive: false, goldBoostEndTime: null });
             useToastStore.getState().addToast({
                 type: 'info',
@@ -90,12 +125,25 @@ const useAdStore = create((set, get) => ({
                 color: '#95a5a6'
             });
         }
+
+        if (speedBoostActive && speedBoostEndTime && now > speedBoostEndTime) {
+            set({ speedBoostActive: false, speedBoostEndTime: null });
+
+                useGameStore.getState().setTimeMultiplier(1);
+
+            useToastStore.getState().addToast({
+                type: 'info',
+                message: 'Speed Boost Expired',
+                icon: '🐌',
+                color: '#95a5a6'
+            });
+        }
     },
 
     // Save/Load helpers
     getSaveData: () => {
-        const { goldBoostActive, goldBoostEndTime, lastAdWatchTime } = get();
-        return { goldBoostActive, goldBoostEndTime, lastAdWatchTime };
+        const { goldBoostActive, goldBoostEndTime, speedBoostActive, speedBoostEndTime, soulDoubleActive, lastAdWatchTime } = get();
+        return { goldBoostActive, goldBoostEndTime, speedBoostActive, speedBoostEndTime, soulDoubleActive, lastAdWatchTime };
     },
 
     loadSaveData: (data) => {
@@ -103,6 +151,9 @@ const useAdStore = create((set, get) => ({
         set({
             goldBoostActive: data.goldBoostActive || false,
             goldBoostEndTime: data.goldBoostEndTime || null,
+            speedBoostActive: data.speedBoostActive || false,
+            speedBoostEndTime: data.speedBoostEndTime || null,
+            soulDoubleActive: data.soulDoubleActive || false,
             lastAdWatchTime: { ...get().lastAdWatchTime, ...(data.lastAdWatchTime || {}) }
         });
         // Immediately check expiry on load
@@ -114,6 +165,12 @@ const useAdStore = create((set, get) => ({
         const { goldBoostEndTime } = get();
         if (!goldBoostEndTime) return 0;
         return Math.max(0, goldBoostEndTime - Date.now());
+    },
+
+    getSpeedBoostTimeRemaining: () => {
+        const { speedBoostEndTime } = get();
+        if (!speedBoostEndTime) return 0;
+        return Math.max(0, speedBoostEndTime - Date.now());
     },
 
     getCooldownRemaining: (type) => {

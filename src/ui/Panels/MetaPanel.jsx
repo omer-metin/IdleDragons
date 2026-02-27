@@ -1,20 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import useMetaStore, { UPGRADES } from '../../store/useMetaStore';
 import useGameStore from '../../store/useGameStore';
-import { Skull, TrendingUp, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
-
-const formatTime = (seconds) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
-};
+import SkillTreePanel from './SkillTreePanel';
 
 const MetaPanel = () => {
-    const { activePanel, closePanel, zone } = useGameStore();
-    const { souls, generation, upgrades, getUpgradeCost, buyUpgrade, triggerTPK, getPendingSouls, highestZone, totalKillsAllTime, totalPlaytimeSeconds } = useMetaStore();
+    const { activePanel, closePanel } = useGameStore();
+    const { souls, generation, upgrades, getUpgradeCost, buyUpgrade, highestZone, totalKillsAllTime, ascensionTier, getPendingSouls } = useMetaStore();
+    const [tab, setTab] = useState('upgrades');
 
     React.useEffect(() => {
         if (activePanel === 'meta') {
@@ -25,12 +20,6 @@ const MetaPanel = () => {
     if (activePanel !== 'meta') return null;
 
     const pendingSouls = getPendingSouls();
-
-    const handleTPK = () => {
-        closePanel();
-        useGameStore.getState().endGame();
-        AudioManager.playSFX('ui_equip');
-    };
 
     return (
         <div className="glass-panel anim-scale-in" style={{
@@ -49,13 +38,16 @@ const MetaPanel = () => {
             boxShadow: '0 0 80px rgba(142, 68, 173, 0.4)',
             zIndex: 2000
         }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--panel-border)', paddingBottom: '1rem' }}>
-                <h1 className="font-display" style={{ fontSize: '2rem', color: 'var(--accent-secondary)', margin: 0 }}>Soul Shop</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--panel-border)', paddingBottom: '1rem' }}>
+                <h1 className="font-display" style={{ fontSize: '2rem', color: 'var(--accent-secondary)', margin: 0 }}>
+                    Soul Shop
+                    {ascensionTier > 0 && <span style={{ fontSize: '0.9rem', color: '#f1c40f', marginLeft: '0.5rem' }}>Asc. {ascensionTier}</span>}
+                </h1>
                 <GameButton onClick={closePanel} style={{ padding: '8px', background: 'transparent', border: 'none' }}>
                     <X size={28} />
                 </GameButton>
             </div>
-            <div style={{ textAlign: 'center', marginBottom: '1.5rem', color: '#bdc3c7' }}>Generation {generation}</div>
+            <div style={{ textAlign: 'center', marginBottom: '1rem', color: '#bdc3c7' }}>Generation {generation}</div>
 
             {/* Stats Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.75rem', marginBottom: '1.5rem' }}>
@@ -77,40 +69,63 @@ const MetaPanel = () => {
                 </div>
             </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ borderBottom: '1px solid #8e44ad', paddingBottom: '0.5rem', margin: '0 0 0.75rem' }}>Meta Upgrades</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto' }}>
-                    {Object.entries(UPGRADES).map(([id, data]) => {
-                        const level = upgrades[id] || 0;
-                        const cost = getUpgradeCost(id);
-                        const isMax = level >= data.maxLevel;
-
-                        return (
-                            <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                                <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{data.name} <span style={{ fontSize: '0.75rem', color: '#9b59b6' }}>Lvl {level}/{data.maxLevel}</span></div>
-                                    <div style={{ fontSize: '0.75rem', color: '#7f8c8d' }}>{data.description}</div>
-                                </div>
-                                <GameButton
-                                    onClick={() => buyUpgrade(id)}
-                                    disabled={isMax || souls < cost}
-                                    style={{
-                                        padding: '0.5rem 1rem',
-                                        background: isMax ? 'var(--accent-success)' : souls >= cost ? 'var(--accent-secondary)' : 'var(--bg-panel)',
-                                        border: (isMax || souls >= cost) ? 'none' : '1px solid var(--panel-border)',
-                                        color: 'white',
-                                        fontWeight: 'bold',
-                                        minWidth: '90px',
-                                        fontSize: '0.85rem'
-                                    }}
-                                >
-                                    {isMax ? 'MAX' : `${cost} ✦`}
-                                </GameButton>
-                            </div>
-                        );
-                    })}
-                </div>
+            {/* Tab Switcher */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                <GameButton
+                    onClick={() => setTab('upgrades')}
+                    style={{
+                        flex: 1, padding: '0.6rem',
+                        background: tab === 'upgrades' ? 'var(--accent-secondary)' : 'rgba(255,255,255,0.05)',
+                        border: tab === 'upgrades' ? 'none' : '1px solid var(--panel-border)',
+                        color: 'white', fontWeight: 'bold', fontSize: '0.85rem',
+                    }}
+                >Upgrades</GameButton>
+                <GameButton
+                    onClick={() => setTab('skillTree')}
+                    style={{
+                        flex: 1, padding: '0.6rem',
+                        background: tab === 'skillTree' ? 'var(--accent-secondary)' : 'rgba(255,255,255,0.05)',
+                        border: tab === 'skillTree' ? 'none' : '1px solid var(--panel-border)',
+                        color: 'white', fontWeight: 'bold', fontSize: '0.85rem',
+                    }}
+                >Skill Tree</GameButton>
             </div>
+
+            {/* Tab Content */}
+            {tab === 'upgrades' ? (
+                <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '350px', overflowY: 'auto' }}>
+                        {Object.entries(UPGRADES).map(([id, data]) => {
+                            const level = upgrades[id] || 0;
+                            const cost = getUpgradeCost(id);
+                            const isMax = level >= data.maxLevel;
+
+                            return (
+                                <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{data.name} <span style={{ fontSize: '0.75rem', color: '#9b59b6' }}>Lvl {level}/{data.maxLevel}</span></div>
+                                        <div style={{ fontSize: '0.75rem', color: '#7f8c8d' }}>{data.description}</div>
+                                    </div>
+                                    <GameButton
+                                        onClick={() => buyUpgrade(id)}
+                                        disabled={isMax || souls < cost}
+                                        style={{
+                                            padding: '0.5rem 1rem',
+                                            background: isMax ? 'var(--accent-success)' : souls >= cost ? 'var(--accent-secondary)' : 'var(--bg-panel)',
+                                            border: (isMax || souls >= cost) ? 'none' : '1px solid var(--panel-border)',
+                                            color: 'white', fontWeight: 'bold', minWidth: '90px', fontSize: '0.85rem',
+                                        }}
+                                    >
+                                        {isMax ? 'MAX' : `${cost} ✦`}
+                                    </GameButton>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                <SkillTreePanel />
+            )}
         </div>
     );
 };

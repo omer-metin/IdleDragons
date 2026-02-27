@@ -7,7 +7,7 @@ const useTutorialStore = create((set, get) => ({
     isCompleted: false,
     isSkipped: false,
 
-    // Step definitions
+    // Step definitions (expanded from 5 to 10)
     steps: [
         {
             id: 'welcome',
@@ -16,16 +16,16 @@ const useTutorialStore = create((set, get) => ({
             position: 'center',
             highlight: null,
             gameState: 'LOBBY',
-            icon: '🐉',
+            icon: '\uD83D\uDC09',
         },
         {
             id: 'recruit',
             title: 'Recruit Your First Hero',
-            text: 'Click on an empty slot on the grid below to recruit a hero. Each hero costs Souls — the currency of the dead.',
+            text: 'Click on an empty slot on the grid below to recruit a hero. Each hero costs Souls \u2014 the currency of the dead.',
             position: 'top',
             highlight: 'grid',
             gameState: 'LOBBY',
-            icon: '⚔️',
+            icon: '\u2694\uFE0F',
             waitForAction: 'recruitment_opened',
         },
         {
@@ -35,18 +35,63 @@ const useTutorialStore = create((set, get) => ({
             position: 'top',
             highlight: null,
             gameState: 'LOBBY',
-            icon: '🛡️',
+            icon: '\uD83D\uDEE1\uFE0F',
             requiresParty: true,
         },
         {
             id: 'start_adventure',
             title: 'Begin the Adventure!',
-            text: 'Press START ADVENTURE to send your party into battle. They will fight automatically — your job is to manage upgrades and strategy between runs.',
+            text: 'Press START ADVENTURE to send your party into battle. They will fight automatically \u2014 your job is to manage upgrades and strategy between runs.',
             position: 'top',
             highlight: 'start_button',
             gameState: 'LOBBY',
-            icon: '🏰',
+            icon: '\uD83C\uDFF0',
             requiresParty: true,
+        },
+        {
+            id: 'equipment_tip',
+            title: 'Gear Up!',
+            text: 'You found loot! Open your Inventory to see items. Tap a hero, then equip items to boost their stats. Better gear means deeper zones!',
+            position: 'top',
+            highlight: null,
+            gameState: 'RUNNING',
+            icon: '\uD83D\uDEE1\uFE0F',
+        },
+        {
+            id: 'selling_tip',
+            title: 'Manage Your Inventory',
+            text: 'Your inventory is filling up! Sell unwanted items for gold, or salvage them for crafting materials. Use "Sell All Commons" for quick cleanup.',
+            position: 'top',
+            highlight: null,
+            gameState: 'RUNNING',
+            icon: '\uD83D\uDCB0',
+        },
+        {
+            id: 'crafting_tip',
+            title: 'Craft Powerful Gear',
+            text: 'Salvage items to get materials like Iron, Crystal, and Essence. Then visit the Crafting panel to forge guaranteed-rarity equipment!',
+            position: 'center',
+            highlight: null,
+            gameState: 'RUNNING',
+            icon: '\uD83D\uDD28',
+        },
+        {
+            id: 'skills_tip',
+            title: 'Hero Skills',
+            text: 'Your heroes have unique skills that auto-cast during battle! Watch the skill bar for cooldown timers. Each class has a different powerful ability.',
+            position: 'top',
+            highlight: null,
+            gameState: 'RUNNING',
+            icon: '\u2728',
+        },
+        {
+            id: 'prestige_tip',
+            title: 'The Power of Prestige',
+            text: 'Stuck on a tough zone? Use TPK to prestige! You\'ll earn Souls based on your progress. Spend them on permanent upgrades in the Soul Shop.',
+            position: 'center',
+            highlight: null,
+            gameState: 'RUNNING',
+            icon: '\uD83D\uDD04',
         },
         {
             id: 'tpk_explain',
@@ -55,7 +100,7 @@ const useTutorialStore = create((set, get) => ({
             position: 'center',
             highlight: null,
             gameState: 'GAMEOVER',
-            icon: '💀',
+            icon: '\uD83D\uDC80',
         },
     ],
 
@@ -64,6 +109,11 @@ const useTutorialStore = create((set, get) => ({
         const { isCompleted, isSkipped } = get();
         if (isCompleted || isSkipped) return;
         set({ isActive: true, currentStep: 0 });
+    },
+
+    // Restart tutorial (from settings)
+    restartTutorial: () => {
+        set({ isCompleted: false, isSkipped: false, currentStep: 0, isActive: true });
     },
 
     // Advance to next step
@@ -91,7 +141,6 @@ const useTutorialStore = create((set, get) => ({
     },
 
     // Check if a specific step should be triggered
-    // Called from game state changes
     checkStepTrigger: (gameState, partySize) => {
         const { isActive, currentStep, steps, isCompleted, isSkipped } = get();
         if (isCompleted || isSkipped) return;
@@ -107,12 +156,11 @@ const useTutorialStore = create((set, get) => ({
 
         // Trigger TPK explanation when game over happens
         if (step.id === 'tpk_explain' && gameState !== 'GAMEOVER') {
-            // Not ready yet, skip for now
             return;
         }
     },
 
-    // Called when recruitment panel opens (step 1 waitForAction)
+    // Called when recruitment panel opens
     onRecruitmentOpened: () => {
         const { isActive, currentStep, steps } = get();
         if (!isActive) return;
@@ -128,7 +176,7 @@ const useTutorialStore = create((set, get) => ({
         if (!isActive) return;
         const step = steps[currentStep];
         if (step && step.id === 'recruit') {
-            set({ currentStep: currentStep + 1 }); // Move to party_ready
+            set({ currentStep: currentStep + 1 });
         }
     },
 
@@ -138,8 +186,52 @@ const useTutorialStore = create((set, get) => ({
         if (!isActive) return;
         const step = steps[currentStep];
         if (step && step.id === 'start_adventure') {
-            // Skip to TPK step — it will wait for GAMEOVER
             set({ currentStep: currentStep + 1 });
+        }
+    },
+
+    // Called on first loot drop — shows equipment tip
+    onFirstLoot: () => {
+        const { isActive, currentStep, steps } = get();
+        if (!isActive) return;
+        const step = steps[currentStep];
+        if (step && step.id === 'equipment_tip') {
+            // Step is now visible — it matches RUNNING state
+        }
+    },
+
+    // Called when inventory is near full (>= 40 items)
+    onInventoryNearFull: () => {
+        const { isActive, currentStep, steps } = get();
+        if (!isActive) return;
+        const step = steps[currentStep];
+        // If still on equipment tip, advance to selling tip
+        if (step && step.id === 'equipment_tip') {
+            set({ currentStep: currentStep + 1 });
+        }
+    },
+
+    // Called on first skill activation
+    onFirstSkill: () => {
+        const { isActive, currentStep, steps } = get();
+        if (!isActive) return;
+        const step = steps[currentStep];
+        if (step && step.id === 'skills_tip') {
+            // Step visible in RUNNING state
+        }
+    },
+
+    // Called when prestige hint should show (zone 5+ or repeated wipes)
+    onPrestigeHint: () => {
+        const { isActive, currentStep, steps } = get();
+        if (!isActive) return;
+        const step = steps[currentStep];
+        // Auto-skip intermediate steps to reach prestige_tip
+        if (step && ['equipment_tip', 'selling_tip', 'crafting_tip', 'skills_tip'].includes(step.id)) {
+            const prestigeIdx = steps.findIndex(s => s.id === 'prestige_tip');
+            if (prestigeIdx >= 0) {
+                set({ currentStep: prestigeIdx });
+            }
         }
     },
 
@@ -151,7 +243,6 @@ const useTutorialStore = create((set, get) => ({
         const step = steps[currentStep];
         if (step && step.id === 'tpk_explain') {
             // Step is now active and visible (GAMEOVER matches)
-            // It will show naturally since gameState matches
         }
     },
 

@@ -4,7 +4,7 @@ import useGameStore from '../../store/useGameStore';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 import { Skull, TrendingUp, Clock, MapPin } from 'lucide-react';
-import { ReviveAdButton } from '../components/AdButtons';
+import { ReviveAdButton, SoulDoubleButton } from '../components/AdButtons';
 
 const ResultsPanel = () => {
     const { getPendingSouls, triggerTPK, souls } = useMetaStore();
@@ -102,6 +102,9 @@ const ResultsPanel = () => {
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)', marginTop: '0.5rem' }}>
                         Total Souls: {souls + displayedSouls}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.8rem' }}>
+                        <SoulDoubleButton />
                     </div>
                 </div>
 

@@ -98,6 +98,11 @@ html,
   background: var(--accent-gold);
 }
 
+/* Touch optimization for interactive elements */
+button, a, [role="button"], input, select {
+  touch-action: manipulation;
+}
+
 /* Button Reset & Base */
 button {
   cursor: pointer;

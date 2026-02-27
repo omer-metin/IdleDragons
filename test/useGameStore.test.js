@@ -177,9 +177,9 @@ describe('useGameStore', () => {
             expect(useGameStore.getState().timeMultiplier).toBe(3);
         });
 
-        it('setTimeMultiplier caps at 3x max', () => {
+        it('setTimeMultiplier caps at 5x max', () => {
             useGameStore.getState().setTimeMultiplier(10);
-            expect(useGameStore.getState().timeMultiplier).toBe(3);
+            expect(useGameStore.getState().timeMultiplier).toBe(5);
         });
 
         it('setTimeMultiplier allows values below cap', () => {

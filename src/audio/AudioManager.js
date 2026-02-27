@@ -238,6 +238,19 @@ class AudioManager {
             this.melodyInterval = null;
         }
     }
+
+    mute() {
+        if (!this.ctx || !this.masterGain) return;
+        this._preMuteVolume = this.masterGain.gain.value;
+        this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+    }
+
+    unmute() {
+        if (!this.ctx || !this.masterGain) return;
+        const vol = this._preMuteVolume ?? useSettingsStore.getState().masterVolume;
+        this.masterGain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        this._preMuteVolume = null;
+    }
 }
 
 export default new AudioManager();
