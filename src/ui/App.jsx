@@ -30,16 +30,29 @@ import CraftingPanel from './Panels/CraftingPanel';
 import StatsPanel from './Panels/StatsPanel';
 import LeaderboardPanel from './Panels/LeaderboardPanel';
 import EventPanel from './Panels/EventPanel';
+import PartyWipePanel from './Panels/PartyWipePanel';
 import PauseOverlay from './Panels/PauseOverlay';
 import ConfirmDialog from './components/ConfirmDialog';
 import CrazyGamesSDK from '../platform/CrazyGames';
 
 const App = () => {
     const gameState = useGameStore(state => state.gameState);
+    const activePanel = useGameStore(state => state.activePanel);
+    const currentZoneTheme = useGameStore(state => state.currentZoneTheme);
     const [isLoading, setIsLoading] = useState(true);
     const [loadProgress, setLoadProgress] = useState(0);
     const [offlineEarnings, setOfflineEarnings] = useState(null);
     const loadStartTime = useRef(Date.now());
+
+    // Update CSS custom properties when zone theme changes
+    useEffect(() => {
+        if (currentZoneTheme) {
+            const root = document.documentElement;
+            root.style.setProperty('--zone-accent', currentZoneTheme.uiAccent || '#c9a96e');
+            root.style.setProperty('--zone-border', currentZoneTheme.uiBorder || '#6b5530');
+            root.style.setProperty('--zone-glow', currentZoneTheme.uiGlow || 'rgba(201,169,110,0.15)');
+        }
+    }, [currentZoneTheme]);
 
     // Global Input Listeners (Escape -> Close Panel / Toggle Pause)
     useEffect(() => {
@@ -53,7 +66,7 @@ const App = () => {
                     return;
                 }
 
-                if (activePanel) {
+                if (activePanel && activePanel !== 'party_wipe') {
                     closePanel();
                 } else if (gameState === 'RUNNING' || gameState === 'PAUSED') {
                     togglePause();
@@ -213,7 +226,8 @@ const App = () => {
                     <StatsPanel />
                     <LeaderboardPanel />
                     <EventPanel />
-                    {gameState === 'PAUSED' && <PauseOverlay />}
+                    <PartyWipePanel />
+                    {gameState === 'PAUSED' && !activePanel && <PauseOverlay />}
                 </>
             ) : gameState === 'LOBBY' ? (
                 <>

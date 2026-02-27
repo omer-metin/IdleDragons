@@ -191,9 +191,9 @@ class EncounterManager {
         const xpMult = 1 + (metaUpgrades.xpGain || 0) * 0.25;
         usePartyStore.getState().distributeXp(Math.floor(xpAmount * xpMult));
 
-        // Loot roll (elite: guaranteed Rare+ x2, boss: x3, normal: x1)
+        // Loot roll (elite: guaranteed Rare+, boss: x2, normal: x1)
         const { zone } = useGameStore.getState();
-        const lootRolls = enemy.isBoss ? 3 : enemy.isElite ? 2 : 1;
+        const lootRolls = enemy.isBoss ? 2 : 1;
 
         for (let i = 0; i < lootRolls; i++) {
             const item = enemy.isElite
@@ -208,7 +208,7 @@ class EncounterManager {
                     color: item.rarityColor || '#f1c40f',
                     duration: 4000
                 });
-                AudioManager.playSFX('loot_drop');
+                AudioManager.playSFX(item.rarity && item.rarity !== 'Common' ? 'loot_rare' : 'loot_drop');
             }
         }
     }
@@ -254,6 +254,7 @@ class EncounterManager {
                 icon: 'mnt',
                 color: '#8e44ad'
             });
+            AudioManager.playSFX('zone_advance');
             AudioManager.startBGM('adventure');
 
             // Gold Interest (skill tree)

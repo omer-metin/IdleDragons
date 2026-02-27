@@ -15,9 +15,13 @@ const useGameStore = create((set, get) => ({
     enemiesPerWave: 3,
     enemiesKilledThisWave: 0,
     totalKills: 0,
+    retriesUsedThisZone: 0,
 
     activePanel: null,
     selectedGridSlot: null,
+
+    // Zone theme for UI color-grading (set by AdventureScene on tier change)
+    currentZoneTheme: null,
 
     enterMenu: () => set({ gameState: 'MENU', isRunning: false, activePanel: null }),
     startGame: () => set({ gameState: 'LOBBY', isRunning: false }), // Menu -> Lobby
@@ -84,6 +88,7 @@ const useGameStore = create((set, get) => ({
                 enemiesKilledThisWave: 0,
                 enemiesPerWave: newEnemiesPerWave,
                 score: newZone * 100 + 10,
+                retriesUsedThisZone: 0,
             });
         } else {
             set({
@@ -101,6 +106,20 @@ const useGameStore = create((set, get) => ({
         isRunning: true,
     })),
 
+    // Party wipe: retry current wave (keep zone progress)
+    getRetryCost: () => {
+        const { retriesUsedThisZone, zone } = get();
+        return retriesUsedThisZone === 0 ? 0 : zone * 50;
+    },
+
+    retryWave: () => set((state) => ({
+        enemiesKilledThisWave: 0,
+        gameState: 'RUNNING',
+        isRunning: true,
+        activePanel: null,
+        retriesUsedThisZone: state.retriesUsedThisZone + 1,
+    })),
+
     resetGame: () => set({
         distance: 0,
         score: 0,
@@ -109,6 +128,7 @@ const useGameStore = create((set, get) => ({
         enemiesPerWave: 3,
         enemiesKilledThisWave: 0,
         totalKills: 0,
+        retriesUsedThisZone: 0,
         gameState: 'LOBBY',
         isRunning: false,
         activePanel: null

@@ -22,7 +22,7 @@ const SLOT_ICONS = {
 };
 
 const CharacterDetailsPanel = () => {
-    const { activePanel, closePanel, selectedGridSlot } = useGameStore();
+    const { activePanel, closePanel, selectedGridSlot, gameState } = useGameStore();
     const { members, updateMember, removeMember } = usePartyStore();
     const { gold, removeGold } = useResourceStore();
     const inventory = useInventoryStore();
@@ -60,11 +60,11 @@ const CharacterDetailsPanel = () => {
     const maxHp = member.stats.hp;
     const needsHeal = currentHp < maxHp;
     const healCost = level * 5;
-    const { gameState } = useGameStore();
 
     const handleUpgrade = () => {
         if (gold >= upgradeCost) {
             removeGold(upgradeCost);
+            AudioManager.playSFX('upgrade_buy');
             updateMember(member.id, {
                 level: level + 1,
                 stats: {

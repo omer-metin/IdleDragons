@@ -4,6 +4,7 @@ import AudioManager from '../../audio/AudioManager';
 const GameButton = ({ onClick, onMouseEnter, children, className, disabled, style: propStyle, ...props }) => {
     const handleClick = (e) => {
         if (!disabled) {
+            AudioManager.init(); // Lazy-init AudioContext on first user interaction (browser autoplay policy)
             AudioManager.playSFX('button_click');
             if (onClick) onClick(e);
         }

@@ -50,6 +50,10 @@ export class Character extends PIXI.Container {
         // Sleep zzZ animation
         this.sleepZTimer = 0;
 
+        // Animation state
+        this.currentFrame = 'idle';
+        this.attackAnimTimer = 0;
+
         // Interaction
         this.eventMode = 'static';
         this.cursor = 'pointer';
@@ -75,39 +79,26 @@ export class Character extends PIXI.Container {
 
         const color = this.getClassColor(this.data.class);
 
-        // Shadow (Common)
-        const shadow = new PIXI.Graphics();
-        shadow.beginFill(0x000000, 0.3);
-        shadow.drawEllipse(0, 0, 20, 10);
         // Visual Container for body bouncing
         this.body = new PIXI.Container();
         this.addChild(this.body);
 
-        // Pixel Art Visuals
-        const spriteData = HeroSprites[this.data.class];
-        const palette = HeroPalettes[this.data.class];
+        // Shadow
+        const shadow = new PIXI.Graphics();
+        shadow.beginFill(0x000000, 0.3);
+        shadow.drawEllipse(0, 0, 20, 10);
+        shadow.endFill();
+        this.addChildAt(shadow, 0);
 
-        if (spriteData && palette) {
-            const texture = PixelArtGenerator.getTexture(this.data.class, spriteData, palette);
-            const sprite = new PIXI.Sprite(texture);
-            sprite.scale.set(3); // 20px -> 60px
-            sprite.anchor.set(0.5, 1);
-            this.body.addChild(sprite);
-        } else {
-            // Fallback (Red box)
-            const g = new PIXI.Graphics();
-            g.beginFill(0xFF0000);
-            g.drawRect(-20, -60, 40, 60);
-            g.endFill();
-            this.body.addChild(g);
-        }
+        // Pixel Art Visuals
+        this._buildSprite('idle');
 
         // Inner Glow / Pulse (subtle for all)
         this.innerGlow = new PIXI.Graphics();
-        this.innerGlow.beginFill(color, 0.0); // controlled in update
+        this.innerGlow.beginFill(color, 0.0);
         this.innerGlow.drawCircle(0, -40, 30);
         this.innerGlow.endFill();
-        this.addChild(this.innerGlow); // Add to root, behind body? No needs to be on top or additive.
+        this.addChild(this.innerGlow);
 
         // Name Tag
         const style = new PIXI.TextStyle({
@@ -123,7 +114,7 @@ export class Character extends PIXI.Container {
 
         this.nameTag = new PIXI.Text(this.data.name.toUpperCase(), style);
         this.nameTag.anchor.set(0.5, 1);
-        this.nameTag.y = -95; // Higher up
+        this.nameTag.y = -95;
         this.addChild(this.nameTag);
 
         // Underline
@@ -152,7 +143,7 @@ export class Character extends PIXI.Container {
         this.deathOverlay.drawRoundedRect(-25, -80, 50, 80, 10);
         this.deathOverlay.endFill();
         this.deathOverlay.visible = false;
-        this.body.addChild(this.deathOverlay); // Attach to body so it moves with it
+        this.body.addChild(this.deathOverlay);
 
         // Sleep zzZ text
         this.sleepText = new PIXI.Text('💤', { fontSize: 24 });
@@ -160,6 +151,42 @@ export class Character extends PIXI.Container {
         this.sleepText.y = -80;
         this.sleepText.visible = false;
         this.addChild(this.sleepText);
+    }
+
+    /** Build/swap the pixel art sprite for the given animation frame. */
+    _buildSprite(frame) {
+        if (this.bodySprite) {
+            this.body.removeChild(this.bodySprite);
+            this.bodySprite = null;
+        }
+
+        const spriteData = HeroSprites[this.data.class];
+        const palette = HeroPalettes[this.data.class];
+
+        if (spriteData && palette) {
+            const texture = PixelArtGenerator.getTexture(this.data.class, spriteData, palette, frame);
+            this.bodySprite = new PIXI.Sprite(texture);
+            this.bodySprite.scale.set(3);
+            this.bodySprite.anchor.set(0.5, 0.55);
+            this.body.addChildAt(this.bodySprite, 0);
+        } else {
+            // Fallback (Red box)
+            const g = new PIXI.Graphics();
+            g.beginFill(0xFF0000);
+            g.drawRect(-20, -60, 40, 60);
+            g.endFill();
+            this.bodySprite = g;
+            this.body.addChildAt(g, 0);
+        }
+
+        this.currentFrame = frame;
+    }
+
+    /** Switch animation frame if different from current. */
+    setFrame(frame) {
+        if (this.currentFrame !== frame) {
+            this._buildSprite(frame);
+        }
     }
 
     updateHpBar() {
@@ -240,6 +267,7 @@ export class Character extends PIXI.Container {
         this.sleepText.visible = true;
         this.body.alpha = 0.3;
         this.innerGlow.visible = false;
+        this.setFrame('death');
     }
 
     wakeUp() {
@@ -249,6 +277,7 @@ export class Character extends PIXI.Container {
         this.sleepText.visible = false;
         this.body.alpha = 0.8;
         this.innerGlow.visible = true;
+        this.setFrame('idle');
     }
 
     onCharacterClick(e) {
@@ -256,7 +285,6 @@ export class Character extends PIXI.Container {
 
         const { gameState, selectGridSlot, openPanel } = useGameStore.getState();
 
-        // Ensure we ignore clicks if game is in a weird state, but LOBBY/RUNNING/PAUSED are all fine for inspection
         if (['LOBBY', 'RUNNING', 'PAUSED'].includes(gameState)) {
             selectGridSlot(this.data.x, this.data.y);
             openPanel('character_details');
@@ -270,7 +298,14 @@ export class Character extends PIXI.Container {
         const isRunning = useGameStore.getState().isRunning;
         const time = Date.now();
 
-        // Idle Animation (Glow)
+        // Attack animation timer — show attack frame briefly then revert
+        if (this.attackAnimTimer > 0) {
+            this.attackAnimTimer -= delta;
+            if (this.attackAnimTimer <= 0 && !this.isDead) {
+                this.setFrame('idle');
+            }
+        }
+
         // Idle Animation (Class specific)
         if (!this.isDead && this.body) {
             const idleSpeed = this.data.class === 'Mage' ? 0.003 : 0.005;
@@ -282,10 +317,6 @@ export class Character extends PIXI.Container {
             if (this.aura) {
                 this.aura.alpha = 0.2 + Math.sin(time * 0.002) * 0.1;
                 this.aura.scale.set(1.0 + Math.sin(time * 0.002) * 0.05);
-            }
-            // Halo float
-            if (this.data.class === 'Cleric') {
-                // Done in specialized glow/aura
             }
         }
 
@@ -323,8 +354,6 @@ export class Character extends PIXI.Container {
         this.atk = (this.data.stats?.atk || 10) + equipStats.atk;
         this.def = (this.data.stats?.def || 0) + equipStats.def;
 
-        // NO passive HP regen — only Cleric heals
-
         // Cleric healing ability
         if (this.isHealer) {
             this.healCooldown -= delta;
@@ -335,6 +364,8 @@ export class Character extends PIXI.Container {
                     const healAmt = this.healAmount + (equipStats.atk || 0);
                     target.receiveHeal(healAmt);
                     CombatSystem.showHealText(target, healAmt);
+                    this.setFrame('attack');
+                    this.attackAnimTimer = 15;
                 }
             }
         }
@@ -348,24 +379,19 @@ export class Character extends PIXI.Container {
         if (this.skillDef) {
             this.skillCooldown -= delta;
             if (this.skillCooldown <= 0) {
-                // Get scene reference from CombatSystem
                 const scene = CombatSystem.scene;
                 if (scene) {
                     const fired = this.skillDef.execute(this, scene);
                     if (fired) {
                         this.skillCooldown = this.skillMaxCooldown;
+                        this.setFrame('attack');
+                        this.attackAnimTimer = 20;
                     } else {
-                        // No valid target — retry soon
-                        this.skillCooldown = 60; // 1s
+                        this.skillCooldown = 60;
                     }
                 }
             }
         }
-
-        // Bobbing is handled above in Idle Animation block
-        // Remove old bobbing to avoid conflict
-        // const bounce = Math.abs(Math.sin(time * 0.005));
-        // this.body.y = -bounce * 4 - 24;
 
         if (this.attackCooldown > 0) {
             this.attackCooldown -= delta;
@@ -378,6 +404,10 @@ export class Character extends PIXI.Container {
                 if (dist <= this.range) {
                     this.attackCooldown = this.attackSpeed;
                     CombatSystem.dealDamage(this, target, this.atk);
+
+                    // Attack animation
+                    this.setFrame('attack');
+                    this.attackAnimTimer = 12;
 
                     const angle = Math.atan2(target.y - this.y, target.x - this.x);
                     this.body.x = Math.cos(angle) * 10;

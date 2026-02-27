@@ -19,7 +19,7 @@ const SKILL_TREE = {
     },
     luckyLoot: {
         name: 'Lucky Loot',
-        description: '+10% loot drop chance per level.',
+        description: '+5% loot drop chance per level.',
         baseCost: 10, costMult: 2, maxLevel: 5, tier: 1, prereqs: [],
     },
     goldInterest: {
@@ -213,7 +213,7 @@ const useMetaStore = create((set, get) => ({
         const node = SKILL_TREE[id];
         if (!node) return 0;
         const level = get().skillTree[id] || 0;
-        if (id === 'luckyLoot') return level * 0.10;
+        if (id === 'luckyLoot') return level * 0.05;
         if (id === 'goldInterest') return level * 0.02;
         return level;
     },

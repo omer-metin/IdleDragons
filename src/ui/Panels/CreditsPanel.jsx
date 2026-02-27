@@ -18,15 +18,19 @@ const CreditsPanel = () => {
     const sections = [
         {
             title: 'Game Design & Development',
-            items: ['Omer Metin', 'Google DeepMind Team']
+            items: ['Omer Metin', 'Claude AI (Anthropic)']
+        },
+        {
+            title: 'Powered By',
+            items: ['React 18', 'Pixi.js', 'Zustand', 'Vite', 'CrazyGames SDK']
         },
         {
             title: 'Art & Assets',
-            items: ['Lucide React Icons', 'Google Fonts (Inter, MedievalSharp)', 'Kenney Assets (Inspiration)']
+            items: ['Lucide React Icons', 'Google Fonts (Inter, MedievalSharp)', 'Procedural Pixel Art & Audio']
         },
         {
             title: 'Special Thanks',
-            items: ['Open Source Community', 'React Team', 'Vite Team']
+            items: ['Open Source Community', 'CrazyGames Platform']
         }
     ];
 
@@ -74,7 +78,7 @@ const CreditsPanel = () => {
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     Made with <Heart size={14} fill="#e74c3c" color="#e74c3c" /> by Omer Metin
                 </div>
-                <div>v0.1.0 Alpha</div>
+                <div>v0.6.0</div>
             </div>
         </div>
     );

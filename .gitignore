@@ -102,8 +102,8 @@ dist
 # Dynamically generated artifacts
 .agent/
 
-ROADMAP.md
+ROADMAP*.md
 
 .claude
 
-user_revisions.md
+user_revisions*.md

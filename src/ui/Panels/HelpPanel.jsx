@@ -95,7 +95,7 @@ const HelpPanel = () => {
                                 { name: 'Mage', color: '#3498db', desc: 'Ranged magic attacks. High burst damage but fragile.' },
                                 { name: 'Ranger', color: '#2ecc71', desc: 'Fast ranged DPS. Consistent damage output.' },
                                 { name: 'Cleric', color: '#f1c40f', desc: 'Heals allies automatically. Essential for survival.' },
-                                { name: 'Rogue', color: '#9b59b6', desc: 'Assassinates lowest HP enemy. Glass cannon.' },
+                                { name: 'Rogue', color: '#9b59b6', desc: 'Assassinates lowest HP enemy. Glass cannon. +5% loot drop chance.' },
                                 { name: 'Paladin', color: '#bdc3c7', desc: 'Divine Shield protects party. Tanky hybrid.' },
                             ].map(c => (
                                 <div key={c.name} className="glass-panel" style={{ padding: '0.7rem', background: 'rgba(255,255,255,0.03)' }}>

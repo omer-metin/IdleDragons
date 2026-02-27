@@ -29,6 +29,11 @@
   --shadow-glow-gold: 0 0 20px rgba(243, 156, 18, 0.3);
   --shadow-glow-arcane: 0 0 20px rgba(142, 68, 173, 0.3);
 
+  /* Zone-themed colors (dynamically updated by JS) */
+  --zone-accent: #c9a96e;
+  --zone-border: #6b5530;
+  --zone-glow: rgba(201, 169, 110, 0.15);
+
   /* Spacing & Radius */
   --radius-sm: 6px;
   --radius-md: 12px;
@@ -71,12 +76,18 @@ html,
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--panel-border);
-  box-shadow: var(--shadow-panel);
-  transition: border-color var(--transition-normal);
+  box-shadow: var(--shadow-panel), inset 0 0 40px var(--zone-glow);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .glass-panel:hover {
   border-color: var(--panel-border-hover);
+}
+
+/* Zone-themed glass panel variant (for panels during gameplay) */
+.glass-panel.zone-themed {
+  border-color: var(--zone-border);
+  box-shadow: var(--shadow-panel), inset 0 0 60px var(--zone-glow), 0 0 15px var(--zone-glow);
 }
 
 /* Scrollbar Styling */
@@ -143,29 +154,56 @@ select {
 
 input[type="range"] {
   -webkit-appearance: none;
+  appearance: none;
   background: transparent;
   height: 6px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.1);
+  touch-action: none;
+  user-select: auto;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  height: 16px;
-  width: 16px;
+  height: 18px;
+  width: 18px;
   border-radius: 50%;
   background: var(--accent-gold);
-  margin-top: -5px;
-  cursor: pointer;
+  margin-top: -6px;
+  cursor: grab;
   box-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
-  transition: transform 0.1s;
 }
 
-input[type="range"]::-webkit-slider-thumb:hover {
+input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
   transform: scale(1.2);
 }
 
 input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+/* Firefox range input support */
+input[type="range"]::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  cursor: grab;
+  border: none;
+  box-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+}
+
+input[type="range"]::-moz-range-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+}
+
+input[type="range"]::-moz-range-track {
   width: 100%;
   height: 6px;
   cursor: pointer;

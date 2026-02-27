@@ -48,7 +48,7 @@ const SettingsPanel = () => {
                     type="range"
                     min="0"
                     max="1"
-                    step="0.05"
+                    step="0.01"
                     value={value}
                     onChange={(e) => handleVolumeChange(type, e)}
                     style={{ flex: 1 }}

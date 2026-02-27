@@ -82,7 +82,7 @@ const CLASS_DEFINITIONS = {
     },
     Rogue: {
         role: 'Duelist',
-        description: 'High Speed and Damage. Very fragile.',
+        description: 'High Speed and Damage. Very fragile. +5% loot drop chance.',
         baseHp: 75,
         baseAtk: 20,
         baseDef: 1,

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import useInventoryStore from './useInventoryStore';
 import useAchievementStore from './useAchievementStore';
 import useMetaStore from './useMetaStore';
+import usePartyStore from './usePartyStore';
 
 const RARITY_WEIGHTS = [
     { rarity: 'Common', weight: 55, color: '#95a5a6', statMult: 1.0 },
@@ -48,12 +49,15 @@ function rollRarity(weights = RARITY_WEIGHTS) {
 }
 
 const useLootStore = create((set, get) => ({
-    dropChance: 0.5, // 50% chance for better feedback loops
+    dropChance: 0.25, // 25% base drop chance
 
     rollLoot: (zone) => {
         // Lucky Loot skill tree bonus
         const luckyBonus = useMetaStore.getState().getSkillTreeEffect('luckyLoot');
-        if (Math.random() > get().dropChance + luckyBonus) return null;
+        // Rogue party bonus: +5% per Rogue in the party
+        const rogueCount = usePartyStore.getState().members.filter(m => m.class === 'Rogue').length;
+        const rogueBonus = rogueCount * 0.05;
+        if (Math.random() > get().dropChance + luckyBonus + rogueBonus) return null;
 
         // Check inventory cap before generating
         if (useInventoryStore.getState().isFull()) return null;

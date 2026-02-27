@@ -44,8 +44,9 @@ const TutorialOverlay = () => {
 
     if (!step) return null;
 
-    // Steps that wait for user action don't show "Next" button
-    const showNextButton = !step.waitForAction;
+    // Steps with waitForAction are non-blocking: no backdrop, no "NEXT" button
+    const isActionStep = !!step.waitForAction;
+    const showNextButton = !isActionStep;
     const isLastStep = currentStep >= steps.length - 1;
 
     // Position the dialog box
@@ -63,14 +64,15 @@ const TutorialOverlay = () => {
 
     return (
         <>
-            {/* Backdrop - semi-transparent, allows clicks through for interactive steps */}
-            <div style={{
-                position: 'absolute',
-                inset: 0,
-                background: step.highlight ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.5)',
-                zIndex: 8000,
-                pointerEvents: step.waitForAction ? 'none' : 'auto',
-            }} />
+            {/* Backdrop — only for non-action steps (informational panels with NEXT button) */}
+            {!isActionStep && (
+                <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: step.highlight ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.5)',
+                    zIndex: 8000,
+                }} />
+            )}
 
             {/* Tutorial dialog */}
             <div style={{
@@ -78,25 +80,29 @@ const TutorialOverlay = () => {
                 ...getDialogPosition(),
                 zIndex: 8002,
                 width: 'clamp(300px, 85vw, 480px)',
-                pointerEvents: step.waitForAction ? 'none' : 'auto',
+                pointerEvents: 'none', // Container doesn't block clicks
                 opacity: animating ? 0 : 1,
                 transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
             }}>
                 <div style={{
-                    background: 'rgba(15, 12, 30, 0.95)',
-                    border: '1px solid rgba(142, 68, 173, 0.5)',
+                    background: isActionStep
+                        ? 'rgba(15, 12, 30, 0.85)'
+                        : 'rgba(15, 12, 30, 0.95)',
+                    border: `1px solid rgba(142, 68, 173, ${isActionStep ? 0.3 : 0.5})`,
                     borderRadius: '16px',
-                    padding: '2rem',
-                    boxShadow: '0 0 40px rgba(142, 68, 173, 0.2), 0 20px 60px rgba(0,0,0,0.5)',
+                    padding: isActionStep ? '1.25rem 1.5rem' : '2rem',
+                    boxShadow: isActionStep
+                        ? '0 0 20px rgba(142, 68, 173, 0.15), 0 10px 30px rgba(0,0,0,0.3)'
+                        : '0 0 40px rgba(142, 68, 173, 0.2), 0 20px 60px rgba(0,0,0,0.5)',
                     backdropFilter: 'blur(10px)',
-                    pointerEvents: 'auto',
+                    pointerEvents: 'auto', // Dialog itself is clickable (for SKIP, NEXT)
                 }}>
                     {/* Step indicator */}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: '1rem',
+                        marginBottom: isActionStep ? '0.5rem' : '1rem',
                     }}>
                         <div style={{
                             display: 'flex',
@@ -132,39 +138,42 @@ const TutorialOverlay = () => {
                         </button>
                     </div>
 
-                    {/* Icon */}
-                    <div style={{
-                        fontSize: '2.5rem',
-                        marginBottom: '0.75rem',
-                        textAlign: 'center',
-                    }}>
-                        {step.icon}
-                    </div>
+                    {/* Icon — smaller for action steps */}
+                    {!isActionStep && (
+                        <div style={{
+                            fontSize: '2.5rem',
+                            marginBottom: '0.75rem',
+                            textAlign: 'center',
+                        }}>
+                            {step.icon}
+                        </div>
+                    )}
 
                     {/* Title */}
                     <h2 className="font-display" style={{
-                        margin: '0 0 0.75rem',
-                        fontSize: '1.4rem',
+                        margin: `0 0 ${isActionStep ? '0.5rem' : '0.75rem'}`,
+                        fontSize: isActionStep ? '1.1rem' : '1.4rem',
                         color: '#f1c40f',
                         textShadow: '0 0 10px rgba(241, 196, 15, 0.3)',
                         textAlign: 'center',
                         letterSpacing: '1px',
                     }}>
+                        {step.icon && isActionStep && <span style={{ marginRight: '0.5rem' }}>{step.icon}</span>}
                         {step.title}
                     </h2>
 
                     {/* Body text */}
                     <p style={{
-                        margin: '0 0 1.5rem',
+                        margin: `0 0 ${isActionStep ? '0.75rem' : '1.5rem'}`,
                         color: '#bdc3c7',
-                        fontSize: '0.95rem',
+                        fontSize: isActionStep ? '0.85rem' : '0.95rem',
                         lineHeight: 1.6,
                         textAlign: 'center',
                     }}>
                         {step.text}
                     </p>
 
-                    {/* Buttons */}
+                    {/* Buttons / Action hint */}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'center',
@@ -193,14 +202,14 @@ const TutorialOverlay = () => {
                                 {isLastStep ? 'GOT IT!' : 'NEXT'}
                             </GameButton>
                         )}
-                        {step.waitForAction && (
+                        {isActionStep && step.actionHint && (
                             <div style={{
                                 color: 'rgba(241, 196, 15, 0.7)',
                                 fontSize: '0.85rem',
                                 fontStyle: 'italic',
                                 animation: 'tutorialTextPulse 2s ease-in-out infinite',
                             }}>
-                                👆 Click a slot on the grid below
+                                {step.actionHint}
                             </div>
                         )}
                     </div>

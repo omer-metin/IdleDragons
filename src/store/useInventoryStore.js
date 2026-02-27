@@ -3,6 +3,7 @@ import usePartyStore from './usePartyStore';
 import useResourceStore from './useResourceStore';
 import useGameStore from './useGameStore';
 import useToastStore from './useToastStore';
+import useTutorialStore from './useTutorialStore';
 import { SALVAGE_YIELDS, RECIPES, RARITY_COLORS } from '../game/data/CraftingRecipes';
 
 const MAX_ITEMS = 50;
@@ -60,6 +61,7 @@ const useInventoryStore = create((set, get) => ({
             items: state.items.filter(i => i.instanceId !== instanceId)
         }));
         useToastStore.getState().addGoldToast(goldValue);
+        useTutorialStore.getState().onItemSold();
         return goldValue;
     },
 
@@ -89,6 +91,7 @@ const useInventoryStore = create((set, get) => ({
             duration: 3000,
         });
 
+        useTutorialStore.getState().onItemSold();
         return totalGold;
     },
 
@@ -161,6 +164,7 @@ const useInventoryStore = create((set, get) => ({
 
         // Equip on party member
         usePartyStore.getState().equipItem(memberId, slot, item);
+        useTutorialStore.getState().onItemEquipped();
         return true;
     },
 
@@ -214,6 +218,7 @@ const useInventoryStore = create((set, get) => ({
             duration: 2500,
         });
 
+        useTutorialStore.getState().onItemSold();
         return yields;
     },
 

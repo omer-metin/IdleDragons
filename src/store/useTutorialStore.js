@@ -7,7 +7,9 @@ const useTutorialStore = create((set, get) => ({
     isCompleted: false,
     isSkipped: false,
 
-    // Step definitions (expanded from 5 to 10)
+    // Step definitions — action-driven tutorial
+    // Steps with waitForAction are non-blocking and advance when the player performs the action.
+    // Steps without waitForAction show a "NEXT" button (informational tips).
     steps: [
         {
             id: 'welcome',
@@ -21,50 +23,46 @@ const useTutorialStore = create((set, get) => ({
         {
             id: 'recruit',
             title: 'Recruit Your First Hero',
-            text: 'Click on an empty slot on the grid below to recruit a hero. Each hero costs Souls \u2014 the currency of the dead.',
+            text: 'Click on an empty slot on the grid to recruit a hero. Each hero costs Souls \u2014 the currency of the dead.',
             position: 'top',
             highlight: 'grid',
             gameState: 'LOBBY',
             icon: '\u2694\uFE0F',
-            waitForAction: 'recruitment_opened',
+            waitForAction: true,
+            actionHint: '\uD83D\uDC46 Click an empty grid slot to recruit',
         },
         {
             id: 'party_ready',
             title: 'Your Hero Awaits!',
-            text: 'Excellent! You can recruit more heroes by clicking other empty slots, or manage your party. When you\'re ready, start the adventure!',
-            position: 'top',
-            highlight: null,
-            gameState: 'LOBBY',
-            icon: '\uD83D\uDEE1\uFE0F',
-            requiresParty: true,
-        },
-        {
-            id: 'start_adventure',
-            title: 'Begin the Adventure!',
-            text: 'Press START ADVENTURE to send your party into battle. They will fight automatically \u2014 your job is to manage upgrades and strategy between runs.',
+            text: 'Great! You can recruit more heroes by clicking other empty slots. When you\'re ready, press START ADVENTURE!',
             position: 'top',
             highlight: 'start_button',
             gameState: 'LOBBY',
-            icon: '\uD83C\uDFF0',
-            requiresParty: true,
+            icon: '\uD83D\uDEE1\uFE0F',
+            waitForAction: true,
+            actionHint: '\u25B6\uFE0F Press START ADVENTURE to begin',
         },
         {
             id: 'equipment_tip',
             title: 'Gear Up!',
-            text: 'You found loot! Open your Inventory to see items. Tap a hero, then equip items to boost their stats. Better gear means deeper zones!',
+            text: 'You found loot! Click a hero in the Warband panel, then equip items to boost their stats. Better gear means deeper zones!',
             position: 'top',
             highlight: null,
             gameState: 'RUNNING',
             icon: '\uD83D\uDEE1\uFE0F',
+            waitForAction: true,
+            actionHint: '\uD83D\uDC46 Click a hero to view and equip items',
         },
         {
             id: 'selling_tip',
             title: 'Manage Your Inventory',
-            text: 'Your inventory is filling up! Sell unwanted items for gold, or salvage them for crafting materials. Use "Sell All Commons" for quick cleanup.',
+            text: 'Your inventory is filling up! Sell unwanted items for gold, or salvage them for crafting materials. Use "Sell" for quick cleanup.',
             position: 'top',
             highlight: null,
             gameState: 'RUNNING',
             icon: '\uD83D\uDCB0',
+            waitForAction: true,
+            actionHint: '\uD83D\uDC46 Sell or salvage items from your inventory',
         },
         {
             id: 'crafting_tip',
@@ -149,24 +147,21 @@ const useTutorialStore = create((set, get) => ({
         const step = steps[currentStep];
         if (!step) return;
 
-        // Auto-advance for party_ready step when a hero is recruited
+        // Auto-advance for recruit step when a hero is recruited
         if (step.id === 'recruit' && partySize > 0) {
             set({ currentStep: currentStep + 1 });
         }
-
-        // Trigger TPK explanation when game over happens
-        if (step.id === 'tpk_explain' && gameState !== 'GAMEOVER') {
-            return;
-        }
     },
 
-    // Called when recruitment panel opens
+    // ─── Action-driven callbacks ───────────────────────────
+
+    // Called when recruitment panel opens (grid slot clicked)
     onRecruitmentOpened: () => {
         const { isActive, currentStep, steps } = get();
         if (!isActive) return;
         const step = steps[currentStep];
         if (step && step.id === 'recruit') {
-            // Don't advance yet — wait for actual recruitment
+            set({ currentStep: currentStep + 1 });
         }
     },
 
@@ -180,12 +175,12 @@ const useTutorialStore = create((set, get) => ({
         }
     },
 
-    // Called when adventure starts
+    // Called when adventure starts — advances past party_ready
     onAdventureStarted: () => {
         const { isActive, currentStep, steps } = get();
         if (!isActive) return;
         const step = steps[currentStep];
-        if (step && step.id === 'start_adventure') {
+        if (step && (step.id === 'party_ready' || step.id === 'start_adventure')) {
             set({ currentStep: currentStep + 1 });
         }
     },
@@ -197,6 +192,26 @@ const useTutorialStore = create((set, get) => ({
         const step = steps[currentStep];
         if (step && step.id === 'equipment_tip') {
             // Step is now visible — it matches RUNNING state
+        }
+    },
+
+    // Called when player opens character details or equips an item
+    onItemEquipped: () => {
+        const { isActive, currentStep, steps } = get();
+        if (!isActive) return;
+        const step = steps[currentStep];
+        if (step && step.id === 'equipment_tip') {
+            set({ currentStep: currentStep + 1 });
+        }
+    },
+
+    // Called when player sells or salvages an item
+    onItemSold: () => {
+        const { isActive, currentStep, steps } = get();
+        if (!isActive) return;
+        const step = steps[currentStep];
+        if (step && step.id === 'selling_tip') {
+            set({ currentStep: currentStep + 1 });
         }
     },
 
