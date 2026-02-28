@@ -2,7 +2,7 @@ import React from 'react';
 import useResourceStore from '../../store/useResourceStore';
 import useGameStore from '../../store/useGameStore';
 import useMetaStore from '../../store/useMetaStore';
-import { Coins, Swords, Pause, Play, Zap, FastForward, Skull, TrendingUp, LogOut, Trophy, BarChart2, Crown } from 'lucide-react';
+import { Coins, Swords, Pause, Play, Skull, LogOut, Trophy, BarChart2, Crown } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 import { GoldBoostButton, SpeedBoostButton } from '../components/AdButtons';
@@ -47,7 +47,6 @@ const HUD = () => {
                         Kills <span style={{ color: 'white' }}>{totalKills}</span>
                     </div>
                     <GoldBoostButton />
-                    <SpeedBoostButton />
                 </div>
             </div>
 
@@ -120,14 +119,14 @@ const HUD = () => {
                 </GameButton>
 
                 {/* Speed Controls */}
-                <div style={{ display: 'flex', gap: '0.25rem', background: '#FFFFFF', padding: '6px', borderRadius: 'var(--radius-md)', border: '3px solid #000000', boxShadow: '0 6px 12px rgba(0,0,0,0.6)' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', background: '#FFFFFF', padding: '6px', borderRadius: 'var(--radius-md)', border: '3px solid #000000', boxShadow: '0 6px 12px rgba(0,0,0,0.6)', alignItems: 'center' }}>
                     {speedOptions.map(speed => (
                         <button
                             key={speed}
                             onClick={() => setTimeMultiplier(speed)}
                             style={{
                                 flex: 1,
-                                padding: '0.4rem 0.8rem', // Larger touch target
+                                padding: '0.4rem 0.8rem',
                                 background: timeMultiplier === speed ? '#000000' : 'transparent',
                                 border: 'none',
                                 borderRadius: '4px',
@@ -141,6 +140,7 @@ const HUD = () => {
                             {speed}x
                         </button>
                     ))}
+                    <SpeedBoostButton />
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>

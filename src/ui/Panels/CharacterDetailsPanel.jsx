@@ -242,7 +242,9 @@ const CharacterDetailsPanel = () => {
                             Available for {SLOT_NAMES[openSlot]}:
                         </div>
                         {(() => {
-                            const items = inventory.getItemsForSlot(openSlot);
+                            const RARITY_SORT = ['Legendary', 'Epic', 'Rare', 'Uncommon', 'Common'];
+                            const items = inventory.getItemsForSlot(openSlot)
+                                .sort((a, b) => RARITY_SORT.indexOf(a.rarity) - RARITY_SORT.indexOf(b.rarity));
                             if (items.length === 0) {
                                 return <div style={{ color: '#7f8c8d', fontStyle: 'italic', fontSize: '0.8rem' }}>No items in inventory for this slot.</div>;
                             }

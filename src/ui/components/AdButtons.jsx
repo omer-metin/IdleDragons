@@ -184,6 +184,8 @@ export const SpeedBoostButton = () => {
 
     useEffect(() => {
         const update = () => {
+            // Check if boost expired and revert speed
+            useAdStore.getState().checkBoosts();
             setTimeLeft(getSpeedBoostTimeRemaining());
             setCooldown(getCooldownRemaining('speed'));
         };

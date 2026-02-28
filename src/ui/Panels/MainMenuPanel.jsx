@@ -1,7 +1,7 @@
 import React from 'react';
 import useGameStore from '../../store/useGameStore';
 import useMetaStore from '../../store/useMetaStore';
-import { Play, Scroll, Settings, Info } from 'lucide-react';
+import { Play, Settings, Info } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 

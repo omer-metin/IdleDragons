@@ -1,6 +1,6 @@
 import React from 'react';
 import useGameStore from '../../store/useGameStore';
-import { X, Heart, Github } from 'lucide-react';
+import { X, Heart } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
 

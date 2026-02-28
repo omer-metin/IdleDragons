@@ -1,11 +1,69 @@
-import React from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import useGameStore from '../../store/useGameStore';
 import useSettingsStore from '../../store/useSettingsStore';
 import SaveSystem from '../../store/useSaveSystem';
-import { X, Volume2, Volume1, VolumeX, RefreshCw, Trash2, Crosshair, BookOpen } from 'lucide-react';
+import { X, Volume2, Volume1, VolumeX, Trash2, Crosshair, BookOpen } from 'lucide-react';
 import useTutorialStore from '../../store/useTutorialStore';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
+
+const VolumeSlider = React.memo(({ label, value, type, onCommit }) => {
+    const [localValue, setLocalValue] = useState(value);
+    const isDragging = useRef(false);
+
+    // Sync local value with prop when not dragging
+    React.useEffect(() => {
+        if (!isDragging.current) setLocalValue(value);
+    }, [value]);
+
+    const displayValue = isDragging.current ? localValue : value;
+
+    const handleInput = useCallback((e) => {
+        const val = parseFloat(e.target.value);
+        setLocalValue(val);
+        isDragging.current = true;
+        // Live audio preview during drag
+        AudioManager.updateVolumes({ ...useSettingsStore.getState(), [`${type}Volume`]: val });
+    }, [type]);
+
+    const handleChange = useCallback((e) => {
+        const val = parseFloat(e.target.value);
+        isDragging.current = false;
+        setLocalValue(val);
+        onCommit(type, val);
+    }, [type, onCommit]);
+
+    const handlePointerUp = useCallback(() => {
+        if (isDragging.current) {
+            isDragging.current = false;
+            onCommit(type, localValue);
+        }
+    }, [type, localValue, onCommit]);
+
+    return (
+        <div style={{ marginBottom: '1.2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', color: '#bdc3c7', fontSize: '0.9rem' }}>
+                <span>{label}</span>
+                <span>{Math.round(displayValue * 100)}%</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                {displayValue === 0 ? <VolumeX size={18} /> : displayValue < 0.5 ? <Volume1 size={18} /> : <Volume2 size={18} />}
+                <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={displayValue}
+                    onInput={handleInput}
+                    onChange={handleChange}
+                    onPointerUp={handlePointerUp}
+                    onTouchEnd={handlePointerUp}
+                    style={{ flex: 1 }}
+                />
+            </div>
+        </div>
+    );
+});
 
 const SettingsPanel = () => {
     const { activePanel, closePanel } = useGameStore();
@@ -26,36 +84,14 @@ const SettingsPanel = () => {
 
     if (activePanel !== 'settings') return null;
 
-    const handleVolumeChange = (type, e) => {
-        const val = parseFloat(e.target.value);
+    const handleVolumeCommit = useCallback((type, val) => {
         setVolume(type, val);
         AudioManager.updateVolumes({ ...useSettingsStore.getState(), [`${type}Volume`]: val });
-    };
+    }, [setVolume]);
 
     const handleHardReset = () => {
         SaveSystem.hardReset();
     };
-
-    const VolumeSlider = ({ label, value, type }) => (
-        <div style={{ marginBottom: '1.2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', color: '#bdc3c7', fontSize: '0.9rem' }}>
-                <span>{label}</span>
-                <span>{Math.round(value * 100)}%</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                {value === 0 ? <VolumeX size={18} /> : value < 0.5 ? <Volume1 size={18} /> : <Volume2 size={18} />}
-                <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    value={value}
-                    onChange={(e) => handleVolumeChange(type, e)}
-                    style={{ flex: 1 }}
-                />
-            </div>
-        </div>
-    );
 
     return (
         <div className="glass-panel anim-scale-in" style={{
@@ -81,9 +117,9 @@ const SettingsPanel = () => {
 
             <div style={{ marginBottom: '2rem' }}>
                 <h3 style={{ fontSize: '1rem', color: 'var(--accent-info)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Audio</h3>
-                <VolumeSlider label="Master Volume" value={masterVolume} type="master" />
-                <VolumeSlider label="Music Volume" value={musicVolume} type="music" />
-                <VolumeSlider label="SFX Volume" value={sfxVolume} type="sfx" />
+                <VolumeSlider label="Master Volume" value={masterVolume} type="master" onCommit={handleVolumeCommit} />
+                <VolumeSlider label="Music Volume" value={musicVolume} type="music" onCommit={handleVolumeCommit} />
+                <VolumeSlider label="SFX Volume" value={sfxVolume} type="sfx" onCommit={handleVolumeCommit} />
             </div>
 
             <div style={{ marginBottom: '2rem' }}>

@@ -3,7 +3,7 @@ import useMetaStore from '../../store/useMetaStore';
 import useGameStore from '../../store/useGameStore';
 import GameButton from '../components/GameButton';
 import AudioManager from '../../audio/AudioManager';
-import { Skull, TrendingUp, Clock, MapPin } from 'lucide-react';
+import { Skull, TrendingUp } from 'lucide-react';
 import { ReviveAdButton, SoulDoubleButton } from '../components/AdButtons';
 
 const ResultsPanel = () => {

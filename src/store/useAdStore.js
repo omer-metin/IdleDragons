@@ -3,6 +3,7 @@ import CrazyGamesSDK from '../platform/CrazyGames';
 import AudioManager from '../audio/AudioManager';
 import useToastStore from './useToastStore';
 import useGameStore from './useGameStore';
+import useAnalyticsStore from './useAnalyticsStore';
 
 const AD_COOLDOWN = 180000; // 3 minutes in ms
 const GOLD_BOOST_DURATION = 300000; // 5 minutes in ms
@@ -53,6 +54,7 @@ const useAdStore = create((set, get) => ({
                     isAdPlaying: false,
                     lastAdWatchTime: { ...prev.lastAdWatchTime, [type]: Date.now() }
                 }));
+                useAnalyticsStore.getState().trackAdWatch(type);
                 if (onReward) onReward();
             },
             (error) => {
@@ -85,13 +87,15 @@ const useAdStore = create((set, get) => ({
 
     activateSpeedBoost: () => {
         const now = Date.now();
+        // Save current user-selected speed before overriding to 5x
+        const gameStore = useGameStore.getState();
+        const prevSpeed = gameStore.timeMultiplier < 5 ? gameStore.timeMultiplier : gameStore.previousTimeMultiplier;
         set({
             speedBoostActive: true,
             speedBoostEndTime: now + SPEED_BOOST_DURATION
         });
 
-        // Import lazily to avoid circular dependency
-        useGameStore.getState().setTimeMultiplier(5);
+        useGameStore.setState({ previousTimeMultiplier: prevSpeed, timeMultiplier: 5 });
 
         useToastStore.getState().addToast({
             type: 'buff',
@@ -129,7 +133,8 @@ const useAdStore = create((set, get) => ({
         if (speedBoostActive && speedBoostEndTime && now > speedBoostEndTime) {
             set({ speedBoostActive: false, speedBoostEndTime: null });
 
-                useGameStore.getState().setTimeMultiplier(1);
+            const prevSpeed = useGameStore.getState().previousTimeMultiplier || 1;
+            useGameStore.getState().setTimeMultiplier(prevSpeed);
 
             useToastStore.getState().addToast({
                 type: 'info',

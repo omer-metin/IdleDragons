@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import CrazyGamesSDK from '../platform/CrazyGames';
+import useAnalyticsStore from './useAnalyticsStore';
 
 const useGameStore = create((set, get) => ({
     gameState: 'MENU', // 'MENU', 'LOBBY', 'RUNNING', 'PAUSED', 'GAMEOVER'
     isRunning: false,
     timeMultiplier: 1.0,
+    previousTimeMultiplier: 1,
     score: 0,
     distance: 0,
 
@@ -25,7 +27,10 @@ const useGameStore = create((set, get) => ({
 
     enterMenu: () => set({ gameState: 'MENU', isRunning: false, activePanel: null }),
     startGame: () => set({ gameState: 'LOBBY', isRunning: false }), // Menu -> Lobby
-    startAdventure: () => set({ gameState: 'RUNNING', isRunning: true }), // Lobby -> Adventure
+    startAdventure: () => {
+        useAnalyticsStore.getState().startRun();
+        return set({ gameState: 'RUNNING', isRunning: true });
+    }, // Lobby -> Adventure
     endGame: () => set({ gameState: 'GAMEOVER', isRunning: false }),
 
     togglePause: () => set((state) => {
@@ -34,7 +39,15 @@ const useGameStore = create((set, get) => ({
         return {};
     }),
 
-    setTimeMultiplier: (multiplier) => set({ timeMultiplier: Math.min(multiplier, 5) }),
+    setTimeMultiplier: (multiplier) => {
+        const clamped = Math.min(multiplier, 5);
+        // When user picks a non-boost speed (1-3x), remember it for boost expiry revert
+        if (clamped < 5) {
+            set({ timeMultiplier: clamped, previousTimeMultiplier: clamped });
+        } else {
+            set({ timeMultiplier: clamped });
+        }
+    },
 
     incrementDistance: (amount) => set((state) => {
         if (state.gameState !== 'RUNNING') return {};
@@ -81,6 +94,8 @@ const useGameStore = create((set, get) => ({
 
             // Scale enemies per wave with zone (3 base + zone/3, capped at 8)
             const newEnemiesPerWave = Math.min(8, 3 + Math.floor(newZone / 3));
+
+            useAnalyticsStore.getState().trackZoneAdvance();
 
             set({
                 zone: newZone,

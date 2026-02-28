@@ -93,7 +93,7 @@ describe('useLootStore', () => {
     });
 
     describe('drop chance', () => {
-        it('approximately 50% of rolls produce items', () => {
+        it('approximately 25% of rolls produce items', () => {
             let drops = 0;
             const trials = 1000;
 
@@ -104,9 +104,9 @@ describe('useLootStore', () => {
             }
 
             const rate = drops / trials;
-            // Allow wide margin: 35% to 65% (dropChance is 0.5)
-            expect(rate).toBeGreaterThan(0.35);
-            expect(rate).toBeLessThan(0.65);
+            // Allow wide margin: 15% to 40% (dropChance is 0.25)
+            expect(rate).toBeGreaterThan(0.15);
+            expect(rate).toBeLessThan(0.40);
         });
     });
 });

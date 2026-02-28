@@ -34,6 +34,7 @@ import PartyWipePanel from './Panels/PartyWipePanel';
 import PauseOverlay from './Panels/PauseOverlay';
 import ConfirmDialog from './components/ConfirmDialog';
 import CrazyGamesSDK from '../platform/CrazyGames';
+import useAnalyticsStore from '../store/useAnalyticsStore';
 
 const App = () => {
     const gameState = useGameStore(state => state.gameState);
@@ -133,7 +134,15 @@ const App = () => {
                 setOfflineEarnings(offlineData);
             }
 
-            return () => SaveSystem.stop();
+            // Session time tracker — update analytics every 30s
+            const sessionTimer = setInterval(() => {
+                useAnalyticsStore.getState().addSessionTime(30);
+            }, 30000);
+
+            return () => {
+                clearInterval(sessionTimer);
+                SaveSystem.stop();
+            };
         }
     }, [isLoading]);
 
@@ -179,12 +188,16 @@ const App = () => {
             if (offlineEarnings && offlineEarnings.goldEarned > 0) {
                 import('../store/useResourceStore').then(({ default: useResourceStore }) => {
                     useResourceStore.getState().addGold(offlineEarnings.goldEarned);
-                    useGameStore.getState().showToast(`Doubled! Earned ${offlineEarnings.goldEarned} extra Gold!`, 'success');
+                    import('../store/useToastStore').then(({ default: useToastStore }) => {
+                        useToastStore.getState().addToast({ type: 'buff', message: `Doubled! Earned ${offlineEarnings.goldEarned} extra Gold!`, icon: '💰', color: '#f1c40f' });
+                    });
                     setOfflineEarnings(null);
                 });
             }
         }, (error) => {
-            useGameStore.getState().showToast('Ad failed to load. Try again later.', 'error');
+            import('../store/useToastStore').then(({ default: useToastStore }) => {
+                useToastStore.getState().addToast({ type: 'error', message: 'Ad failed to load. Try again later.', icon: '❌', color: '#e74c3c' });
+            });
         });
     };
 
