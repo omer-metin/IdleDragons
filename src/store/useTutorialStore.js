@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import useAnalyticsStore from './useAnalyticsStore';
 
 const useTutorialStore = create((set, get) => ({
     // Tutorial state
@@ -121,14 +122,17 @@ const useTutorialStore = create((set, get) => ({
 
         if (nextIndex >= steps.length) {
             set({ isActive: false, isCompleted: true, currentStep: 0 });
+            useAnalyticsStore.getState().trackTutorialComplete();
         } else {
             set({ currentStep: nextIndex });
+            useAnalyticsStore.getState().trackTutorialStep(nextIndex);
         }
     },
 
     // Skip entire tutorial
     skipTutorial: () => {
         set({ isActive: false, isSkipped: true, isCompleted: true });
+        useAnalyticsStore.getState().trackTutorialSkip();
     },
 
     // Get current step data

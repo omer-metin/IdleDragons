@@ -1,4 +1,5 @@
 import AudioManager from '../audio/AudioManager';
+import CloudStorage from './CloudStorage';
 
 const INTERSTITIAL_MIN_GAP = 180000; // 3 minutes in ms
 
@@ -17,6 +18,7 @@ const CrazyGamesSDK = {
                 await window.CrazyGames.SDK.init();
                 this.sdk = window.CrazyGames.SDK;
                 this.isInitialized = true;
+                CloudStorage.init();
                 console.log('CrazyGames SDK Initialized');
             } else {
                 throw new Error('SDK not available');
@@ -41,6 +43,7 @@ const CrazyGamesSDK = {
                 }
             };
             this.isInitialized = true;
+            CloudStorage.init();
         }
     },
 

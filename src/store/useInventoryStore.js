@@ -4,6 +4,7 @@ import useResourceStore from './useResourceStore';
 import useGameStore from './useGameStore';
 import useToastStore from './useToastStore';
 import useTutorialStore from './useTutorialStore';
+import useAnalyticsStore from './useAnalyticsStore';
 import { SALVAGE_YIELDS, RECIPES, RARITY_COLORS } from '../game/data/CraftingRecipes';
 
 const MAX_ITEMS = 50;
@@ -165,6 +166,7 @@ const useInventoryStore = create((set, get) => ({
         // Equip on party member
         usePartyStore.getState().equipItem(memberId, slot, item);
         useTutorialStore.getState().onItemEquipped();
+        useAnalyticsStore.getState().trackEquip();
         return true;
     },
 

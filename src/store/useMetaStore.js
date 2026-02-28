@@ -7,6 +7,7 @@ import useInventoryStore from './useInventoryStore';
 import useAchievementStore from './useAchievementStore';
 import useAdStore from './useAdStore';
 import useEventStore from './useEventStore';
+import useAnalyticsStore from './useAnalyticsStore';
 import EncounterManager from '../game/systems/EncounterManager';
 import CrazyGamesSDK from '../platform/CrazyGames';
 
@@ -236,6 +237,9 @@ const useMetaStore = create((set, get) => ({
         // Ascension soul bonus
         const ascSoulMult = get().getAscensionSoulMult();
         pendingSouls = Math.floor(pendingSouls * ascSoulMult);
+
+        // Track TPK in analytics
+        useAnalyticsStore.getState().trackTPK(zone);
 
         // Update stats before reset
         get().updateStats(zone, totalKills);

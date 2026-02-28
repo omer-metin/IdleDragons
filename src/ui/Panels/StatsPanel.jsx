@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { X, BarChart2 } from 'lucide-react';
+import { X, BarChart2, Activity } from 'lucide-react';
 import GameButton from '../components/GameButton';
 import useGameStore from '../../store/useGameStore';
 import useMetaStore from '../../store/useMetaStore';
 import useAchievementStore from '../../store/useAchievementStore';
+import useAnalyticsStore from '../../store/useAnalyticsStore';
 import AudioManager from '../../audio/AudioManager';
 
 const ACHIEVEMENTS_TOTAL = 20;
@@ -35,10 +36,33 @@ const StatCard = ({ label, value, color }) => (
     </div>
 );
 
+const BalanceIndicator = ({ indicator }) => {
+    if (!indicator) return null;
+    return (
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            padding: '0.6rem 1rem',
+            borderRadius: '8px',
+            background: `${indicator.color}15`,
+            border: `1px solid ${indicator.color}40`,
+            color: indicator.color,
+            fontSize: '0.85rem',
+            fontWeight: 'bold',
+        }}>
+            <span>{indicator.icon}</span>
+            <span>Difficulty: {indicator.label}</span>
+        </div>
+    );
+};
+
 const StatsPanel = () => {
     const { activePanel, closePanel } = useGameStore();
     const { souls, generation, highestZone, totalKillsAllTime, totalPlaytimeSeconds } = useMetaStore();
     const { totalGoldEarned, totalItemsFound, legendariesFound, totalSoulsEarned, unlocked } = useAchievementStore();
+    const analytics = useAnalyticsStore();
 
     useEffect(() => {
         if (activePanel === 'stats') {
@@ -49,6 +73,9 @@ const StatsPanel = () => {
     if (activePanel !== 'stats') return null;
 
     const achievementCount = Object.keys(unlocked).length;
+    const medianTPK = analytics.getMedianTPKZone();
+    const avgRun = analytics.getAverageRunDuration();
+    const balanceIndicator = analytics.getBalanceIndicator();
 
     return (
         <div className="anim-fade-in" style={{
@@ -85,6 +112,7 @@ const StatsPanel = () => {
                     </GameButton>
                 </div>
 
+                {/* Core Stats */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
                     <StatCard label="Total Playtime" value={formatTime(totalPlaytimeSeconds)} color="#3498db" />
                     <StatCard label="Highest Zone" value={highestZone} color="#e67e22" />
@@ -96,6 +124,39 @@ const StatsPanel = () => {
                     <StatCard label="Items Found" value={formatNumber(totalItemsFound)} color="#2ecc71" />
                     <StatCard label="Legendaries" value={legendariesFound} color="#ff6600" />
                     <StatCard label="Achievements" value={`${achievementCount}/${ACHIEVEMENTS_TOTAL}`} color="#1abc9c" />
+                </div>
+
+                {/* Analytics Section */}
+                <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--panel-border)', paddingTop: '1rem' }}>
+                    <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.1rem', color: '#8e44ad', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Activity size={18} /> Analytics
+                    </h3>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                        <StatCard label="Sessions" value={analytics.sessionCount} color="#9b59b6" />
+                        <StatCard label="Session Time" value={formatTime(analytics.totalSessionSeconds)} color="#3498db" />
+                        <StatCard label="Zones Cleared" value={formatNumber(analytics.zoneAdvanceCount)} color="#e67e22" />
+                        <StatCard label="Items Equipped" value={formatNumber(analytics.itemsEquipped)} color="#2ecc71" />
+                        <StatCard label="Ads Watched" value={analytics.adWatchCount} color="#f39c12" />
+                        {medianTPK !== null && (
+                            <StatCard label="Median TPK Zone" value={medianTPK} color="#e74c3c" />
+                        )}
+                        {avgRun > 0 && (
+                            <StatCard label="Avg Run" value={formatTime(avgRun)} color="#1abc9c" />
+                        )}
+                        <StatCard
+                            label="Tutorial"
+                            value={analytics.tutorialCompleted ? 'Done' : analytics.tutorialSkipped ? 'Skipped' : `Step ${analytics.tutorialDropoffStep}`}
+                            color={analytics.tutorialCompleted ? '#2ecc71' : '#95a5a6'}
+                        />
+                    </div>
+
+                    {/* Balance Indicator (9.2) */}
+                    {balanceIndicator && (
+                        <div style={{ marginTop: '0.75rem' }}>
+                            <BalanceIndicator indicator={balanceIndicator} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

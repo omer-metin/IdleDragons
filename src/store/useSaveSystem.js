@@ -8,10 +8,12 @@ import useAdStore from './useAdStore';
 import useAchievementStore from './useAchievementStore';
 import useDailyRewardStore from './useDailyRewardStore';
 import useEventStore from './useEventStore';
+import useAnalyticsStore from './useAnalyticsStore';
+import CloudStorage from '../platform/CloudStorage';
 
 const SAVE_KEY = 'idlesndragons_save';
 const SAVE_INTERVAL = 30000; // 30 seconds
-const CURRENT_VERSION = 3;
+const CURRENT_VERSION = 4;
 const MAX_OFFLINE_SECONDS = 86400; // 24 hours
 const MAX_OFFLINE_GOLD = 100000;
 
@@ -93,9 +95,10 @@ class SaveSystem {
                 achievements: useAchievementStore.getState().getSaveData(),
                 dailyRewards: useDailyRewardStore.getState().getSaveData(),
                 events: useEventStore.getState().getSaveData(),
+                analytics: useAnalyticsStore.getState().getSaveData(),
             };
 
-            localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+            CloudStorage.setItem(SAVE_KEY, JSON.stringify(data));
             this.lastSaveTime = Date.now();
         } catch (e) {
             console.warn('Save failed:', e);
@@ -128,12 +131,24 @@ class SaveSystem {
             data.version = 3;
         }
 
+        // v3 -> v4: analytics store
+        if (data.version < 4) {
+            data.analytics = data.analytics || {
+                sessionCount: 0, totalSessionSeconds: 0,
+                tpkZoneHistory: [], runDurations: [],
+                zoneAdvanceCount: 0, adWatchCount: 0,
+                adTypeBreakdown: { gold: 0, reroll: 0, revive: 0, souls: 0, speed: 0, soulDouble: 0 },
+                itemsEquipped: 0, tutorialCompleted: false, tutorialSkipped: false, tutorialDropoffStep: 0,
+            };
+            data.version = 4;
+        }
+
         return data;
     }
 
     load() {
         try {
-            const raw = localStorage.getItem(SAVE_KEY);
+            const raw = CloudStorage.getItem(SAVE_KEY);
             if (!raw) return null;
 
             let data = JSON.parse(raw);
@@ -240,6 +255,12 @@ class SaveSystem {
                 if (data.events) useEventStore.getState().loadSaveData(data.events);
             } catch (e) { console.warn('Failed to restore events:', e); }
 
+            // Restore Analytics
+            try {
+                if (data.analytics) useAnalyticsStore.getState().loadSaveData(data.analytics);
+                useAnalyticsStore.getState().incrementSession();
+            } catch (e) { console.warn('Failed to restore analytics:', e); }
+
             // Check daily reward availability
             try {
                 useDailyRewardStore.getState().onGameLoad();
@@ -280,7 +301,7 @@ class SaveSystem {
     }
 
     clearSave() {
-        localStorage.removeItem(SAVE_KEY);
+        CloudStorage.removeItem(SAVE_KEY);
     }
 
     hardReset() {
